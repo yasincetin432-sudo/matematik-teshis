@@ -160,7 +160,8 @@ function cizKitapcik({ data }) {
       <div class="sub">${new Date(b.created_at).toLocaleDateString("tr-TR")}</div>`;
     (b.items || []).forEach((it, i) => {
       const opts = ["A","B","C","D","E"].map(L => it.secenekler?.[L] != null ? `<div><b>${L})</b> ${it.secenekler[L]}</div>` : "").join("");
-      html += `<div class="q"><div>${i+1}. ${it.soru}</div><div class="opts">${opts}</div></div>`;
+      const img = it.gorsel ? `<img src="${it.gorsel}" style="max-width:100%;border-radius:8px;margin:6px 0" />` : "";
+      html += `<div class="q"><div>${i+1}. ${it.soru||""}</div>${img}<div class="opts">${opts}</div></div>`;
     });
     html += `</div>`;
   }
