@@ -63,6 +63,7 @@
     <div class="tab" data-t="veri">Veri Girişi</div>
     <div class="tab" data-t="tes">Teşhis &amp; Rapor</div>
     <div class="tab" data-t="hav">Soru Havuzu</div>
+    <div class="tab" data-t="set">Soru Seti PDF</div>
     <div class="tab" data-t="kit">Kitapçık</div>
   </div>
 </header>
@@ -121,12 +122,13 @@
 
       <!-- ASIL YOL: PDF YÜKLE -->
       <div id="vr-pdfbox" style="margin-top:12px;border:2px dashed #99c9c2;border-radius:12px;padding:20px;text-align:center;background:#f0fbf9">
-        <div style="font-size:15px;font-weight:600;color:#0f766e">Karne PDF'ini yükle</div>
-        <div class="muted" style="margin:4px 0 12px">Öğrencinin konu bazlı deneme karnesini seç; sistem okuyup tabloyu doldursun. (Yapay zekâ ile okur — API anahtarı gerekir.)</div>
+        <div style="font-size:15px;font-weight:600;color:#0f766e">Karneyi yükle — PDF veya fotoğraf</div>
+        <div class="muted" style="margin:4px 0 12px">Konu bazlı deneme karnesini seç; sistem okuyup tabloyu doldursun.<br>Karne birden çok sayfaysa <b>tüm fotoğrafları birden seçebilirsin</b> (Ctrl ile çoklu seçim).</div>
         <label style="display:inline-block;background:#0f766e;color:#fff;padding:10px 18px;border-radius:9px;font-weight:600;cursor:pointer">
-          <span id="vr-pdflabel">PDF seç</span>
-          <input type="file" id="vr-pdf" accept="application/pdf" style="display:none" />
+          <span id="vr-pdflabel">PDF / fotoğraf seç</span>
+          <input type="file" id="vr-pdf" accept="image/*,application/pdf" multiple style="display:none" />
         </label>
+        <div id="vr-onizleme" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px"></div>
         <div id="vr-pdfmsg" style="margin-top:8px"></div>
       </div>
 
@@ -144,14 +146,17 @@
   <!-- TEŞHİS & RAPOR -->
   <div id="p-tes" class="hide">
     <div class="card">
-      <label>Öğrenci</label><select id="ts-ogrenci"></select>
-      <div id="ts-govde" style="margin-top:10px" class="muted">Öğrenci seç.</div>
+      <div class="row">
+        <div><label>Öğrenci</label><select id="ts-ogrenci"></select></div>
+        <div style="flex:0"><button class="ghost" id="ts-yazdir" disabled style="padding:9px 14px">Raporu yazdır / PDF</button></div>
+      </div>
     </div>
+    <div id="ts-govde" class="muted" style="padding:0 4px">Değerlendirme için öğrenci seç.</div>
     <div class="card hide" id="ts-raporkart">
-      <h1 style="font-size:15px">Veli/öğrenci raporu</h1>
-      <p class="muted">Raporu oluştur, metni kontrol et (onay), sonra tek tıkla e-postaya aktar veya kopyala.</p>
+      <h1 style="font-size:15px">Veli / öğrenci raporu (metin)</h1>
+      <p class="muted">Raporu oluştur, metni kontrol et, sonra e-postaya aktar veya kopyala.</p>
       <button class="ghost" id="ts-raporolustur">Raporu oluştur</button>
-      <textarea id="ts-rapor" rows="10" class="hide" style="margin-top:8px"></textarea>
+      <textarea id="ts-rapor" rows="12" class="hide" style="margin-top:8px"></textarea>
       <div id="ts-raporbtn" class="hide" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
         <button id="ts-mail">E-posta ile gönder</button>
         <button class="ghost" id="ts-kopyala">Kopyala</button>
@@ -160,97 +165,50 @@
     </div>
   </div>
 
-  <!-- HAVUZ -->
-  <div id="p-hav" class="hide">
-    <div class="card" style="border:2px solid #99c9c2">
-      <h1 style="font-size:16px;color:#0f766e">➊ Soru ekle (en kolay yol — ücretsiz)</h1>
-      <p class="muted">Soruyu yaz, 5 şıkkı doldur, doğru cevabı seç, <b>Havuza ekle</b>. Kendi eklediğin sorular doğrudan onaylı sayılır.</p>
-      <div class="row">
-        <div><label>Konu</label><select id="ha-konu"></select></div>
-        <div><label>Zorluk</label><select id="ha-zorluk"><option>temel</option><option>kolay</option><option selected>orta</option><option>zor</option></select></div>
-        <div><label>Çeşit (ops.)</label><select id="ha-cesit"><option value="">—</option><option>islem</option><option>kavram</option><option>sozel</option><option>grafik</option><option>muhakeme</option><option>coklu</option></select></div>
-      </div>
-      <div style="margin:6px 0 2px">
-        <label style="display:inline-block;background:#eef6f5;color:#0f766e;padding:8px 12px;border-radius:9px;font-weight:600;cursor:pointer;font-size:13px;border:1px solid #c7e5e1">
-          📷 Fotoğraf/PDF'ten doldur (AI)
-          <input type="file" id="ha-file" accept="image/*,application/pdf" style="display:none" />
-        </label>
-        <span id="ha-filemsg" class="muted" style="margin-left:8px"></span>
-      </div>
-      <label>Soru metni</label><textarea id="ha-soru" rows="3" placeholder="Sorunun tam metnini yaz…"></textarea>
-      <div class="row">
-        <div><label>A şıkkı</label><input id="ha-A" /></div><div><label>B şıkkı</label><input id="ha-B" /></div>
-        <div><label>C şıkkı</label><input id="ha-C" /></div><div><label>D şıkkı</label><input id="ha-D" /></div><div><label>E şıkkı</label><input id="ha-E" /></div>
-      </div>
-      <div class="row">
-        <div><label>Doğru cevap</label><select id="ha-dogru"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
-        <div style="flex:3"><label>Çözüm (kısa, ops.)</label><input id="ha-cozum" /></div>
-        <div style="flex:0"><button id="ha-ekle" style="padding:11px 20px">Havuza ekle</button></div>
-      </div>
-      <div id="ha-msg"></div>
-    </div>
-
-    <div class="card" style="border:2px solid #f0b8b8">
-      <h1 style="font-size:16px;color:#b45309">➋ Görselli soru ekle (grafik / şekilli)</h1>
-      <p class="muted">Grafik, şekil veya tablo içeren sorular için: sorunun (şıklarıyla birlikte) net bir <b>fotoğrafını</b> yükle, konu/zorluk/cevabı <b>sen belirle</b>. Resim havuzda, kitapçıkta ve öğrenci portalında görünür.</p>
-      <div class="row">
-        <div><label>Konu</label><select id="gr-konu"></select></div>
-        <div><label>Zorluk</label><select id="gr-zorluk"><option>temel</option><option>kolay</option><option selected>orta</option><option>zor</option></select></div>
-        <div><label>Çeşit</label><select id="gr-cesit"><option value="grafik" selected>grafik</option><option value="">—</option><option>islem</option><option>kavram</option><option>sozel</option><option>muhakeme</option><option>coklu</option></select></div>
-        <div><label>Doğru cevap</label><select id="gr-dogru"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
-      </div>
-      <div style="margin:8px 0">
-        <label style="display:inline-block;background:#0f766e;color:#fff;padding:9px 14px;border-radius:9px;font-weight:600;cursor:pointer">
-          <span id="gr-filelabel">Soru fotoğrafı seç</span>
-          <input type="file" id="gr-file" accept="image/*" style="display:none" />
-        </label>
-        <span id="gr-filemsg" class="muted" style="margin-left:8px"></span>
-      </div>
-      <div id="gr-preview"></div>
-      <label>Çözüm (kısa, ops.)</label><input id="gr-cozum" />
-      <div style="margin-top:8px"><button id="gr-ekle" style="padding:11px 20px" disabled>Havuza ekle</button></div>
-      <div id="gr-msg"></div>
-    </div>
-
+  <!-- SORU SETİ PDF -->
+  <div id="p-set" class="hide">
     <div class="card">
-      <h1 style="font-size:15px">PDF / fotoğraftan toplu soru al (AI)</h1>
-      <p class="muted">İçinde birden çok soru olan bir PDF veya fotoğraf yükle; sorular çıkarılır, konu/zorluk/çeşide otomatik sınıflanır ve <b>taslak</b> olarak havuza girer. Cevap anahtarı yoksa AI çözer — <b>onaydan geçirmeden öğrenciye çıkarma.</b></p>
-      <label style="display:inline-block;background:#0f766e;color:#fff;padding:9px 14px;border-radius:9px;font-weight:600;cursor:pointer;font-size:14px">
-        <span id="hv-pdfqlabel">PDF / fotoğraf seç</span>
-        <input type="file" id="hv-pdfq" accept="image/*,application/pdf" style="display:none" />
-      </label>
-      <div id="hv-pdfqmsg" style="margin-top:8px"></div>
-    </div>
-
-    <details class="card"><summary>➌ Gelişmiş: JSON ile toplu içe aktar / AI ile üret</summary>
-      <div style="margin-top:10px">
-        <label>Claude'dan aldığın JSON'u yapıştır</label>
-        <textarea id="im-json" rows="4" placeholder='[{"topic_id":"ayt_turev","difficulty":"orta","soru":"...","secenekler":{"A":"...","B":"...","C":"...","D":"...","E":"..."},"dogru":"C","cozum":"..."}]'></textarea>
-        <div style="margin-top:6px"><button id="im-btn">İçe aktar</button> <span id="im-msg"></span></div>
+      <h1 style="font-size:16px;color:#0f766e">Öğrenciye özel soru seti hazırla</h1>
+      <p class="muted">Konuları seç, zorluk ve soru sayısını belirle → havuzdan sorular seçilip yazdırılabilir PDF üretilir. İstersen öğrenciye atayıp portalında da görünmesini sağlarsın.</p>
+      <div class="row">
+        <div><label>Öğrenci (ops. — başlıkta yazar / atama için)</label><select id="se-ogrenci"></select></div>
+        <div><label>Konu başına soru</label><select id="se-adet"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>8</option><option>10</option></select></div>
+        <div><label>Sıralama</label><select id="se-sira"><option value="konu">Konuya göre grupla</option><option value="karisik">Karışık</option></select></div>
       </div>
-      <div style="margin-top:14px;border-top:1px solid #e2e8f0;padding-top:12px">
-        <p class="muted">AI ile otomatik üret (API anahtarı + bakiye gerekir, ücretli):</p>
-        <div class="row">
-          <div><label>Konu</label><select id="hv-konu"></select></div>
-          <div><label>Zorluk</label><select id="hv-zorluk"><option value="temel">temel</option><option value="kolay">kolay</option><option value="orta" selected>orta</option><option value="zor">zor</option></select></div>
-          <div><label>Adet</label><select id="hv-adet"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></div>
-          <div style="flex:0"><button id="hv-uret">Üret → taslak</button></div>
+      <div class="row" style="margin-top:4px">
+        <div><label>Zorluk (birden çok seçilebilir)</label>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 0">
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" class="se-z" value="temel" style="width:auto"> temel</label>
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" class="se-z" value="kolay" style="width:auto"> kolay</label>
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" class="se-z" value="orta" checked style="width:auto"> orta</label>
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" class="se-z" value="zor" style="width:auto"> zor</label>
+          </div>
         </div>
-        <div id="hv-uretmsg"></div>
+        <div><label>Seçenekler</label>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 0">
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" id="se-cevapli" style="width:auto"> Cevap anahtarı ekle</label>
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" id="se-tekrar" style="width:auto"> Daha önce verilenleri de kullan</label>
+          </div>
+        </div>
       </div>
-    </details>
 
-    <div class="card">
-      <h1 style="font-size:15px">Havuzdaki sorular</h1>
-      <div class="row">
-        <div><label>Durum</label><select id="hv-durum"><option value="">hepsi</option><option value="dogrulandi">onaylı (öğrenciye çıkabilir)</option><option value="taslak">taslak (onay bekleyen)</option><option value="reddedildi">reddedilen</option></select></div>
-        <div><label>Konu süz</label><select id="hv-suz"><option value="">tümü</option></select></div>
-        <div style="flex:0"><button class="ghost" id="hv-pdf">PDF yazdır</button></div>
-        <div style="flex:0"><label style="margin:0"><input type="checkbox" id="hv-pdfcevap" style="width:auto"/> cevaplı</label></div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <b style="font-size:14px">Konular</b>
+        <button class="ghost" style="padding:4px 10px;font-size:12px" onclick="seSec('zayif')">Zayıf konularımı seç</button>
+        <button class="ghost" style="padding:4px 10px;font-size:12px" onclick="seSec('tyt')">Tüm TYT</button>
+        <button class="ghost" style="padding:4px 10px;font-size:12px" onclick="seSec('ayt')">Tüm AYT</button>
+        <button class="ghost" style="padding:4px 10px;font-size:12px" onclick="seSec('temizle')">Temizle</button>
+        <span id="se-secim" class="muted"></span>
       </div>
-      <div style="margin-top:6px"><span id="hv-sayi" class="muted"></span></div>
-      <div id="hv-liste" class="muted" style="margin-top:8px">Yükleniyor…</div>
+      <div id="se-konular" style="max-height:280px;overflow-y:auto;border:1px solid var(--bd);border-radius:10px;padding:8px;margin-top:6px"></div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="se-uret" style="padding:11px 20px">PDF oluştur</button>
+        <button class="ghost" id="se-ata" disabled>Öğrenciye ata (portalda görünsün)</button>
+      </div>
+      <div id="se-msg"></div>
     </div>
+    <div id="se-onizleme"></div>
   </div>
 
   <!-- KİTAPÇIK -->
@@ -332,12 +290,13 @@ async function boot(){
   const t = await sb.from("topics").select("*").order("section").order("grp");
   TOPICS = t.data || [];
   fillTopicSelects();
+  seKonularCiz();
   await Promise.all([loadStudents(), loadExams()]);
   loadPool();
 }
 function showTab(k){
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x.dataset.t === k));
-  ["ogr","den","veri","tes","hav","kit"].forEach(p => $("p-"+p).classList.toggle("hide", p !== k));
+  ["ogr","den","veri","tes","hav","set","kit"].forEach(p => $("p-"+p).classList.toggle("hide", p !== k));
 }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => showTab(t.dataset.t));
 
@@ -353,7 +312,7 @@ async function loadStudents(){
       "<td><button class='warn' style='padding:3px 8px;font-size:11px' onclick='delStudent(\""+s.id+"\")'>Sil</button></td></tr>"
     ).join("") : "<tr><td colspan=5 class='muted'>Henüz öğrenci yok.</td></tr>");
   const opts = '<option value="">Öğrenci seç…</option>' + STUDENTS.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join("");
-  ["vr-ogrenci","ts-ogrenci","kt-ogrenci"].forEach(id => $(id).innerHTML = opts);
+  ["vr-ogrenci","ts-ogrenci","kt-ogrenci","se-ogrenci"].forEach(id => { const el = $(id); if (el) el.innerHTML = opts; });
 }
 window.setMail = async (sid) => {
   const s = STUDENTS.find(x=>x.id===sid);
@@ -434,30 +393,44 @@ async function drawEntry(){
 /* ---- KARNE PDF -> otomatik doldur ---- */
 async function fileToB64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(",")[1]); r.onerror=rej; r.readAsDataURL(file); }); }
 document.getElementById("vr-pdf").addEventListener("change", async (ev) => {
-  const file = ev.target.files[0]; if (!file) return;
+  const files = [...ev.target.files]; if (!files.length) return;
   const eid = $("vr-deneme").value, sid = $("vr-ogrenci").value;
-  if (!eid || !sid) { $("vr-pdfmsg").innerHTML = '<span class="err">Önce deneme ve öğrenci seç.</span>'; return; }
+  if (!eid || !sid) { $("vr-pdfmsg").innerHTML = '<span class="err">Önce deneme ve öğrenci seç.</span>'; ev.target.value=""; return; }
+
+  const pdf = files.find(f => f.type === "application/pdf" || /\.pdf$/i.test(f.name||""));
+  const fotolar = files.filter(f => f !== pdf && (f.type||"").indexOf("image/") === 0);
+  if (!pdf && !fotolar.length) { $("vr-pdfmsg").innerHTML = '<span class="err">PDF veya fotoğraf seç.</span>'; ev.target.value=""; return; }
+
+  // küçük önizleme (fotoğraflar için)
+  $("vr-onizleme").innerHTML = fotolar.map(f =>
+    '<img src="'+URL.createObjectURL(f)+'" style="height:70px;border:1px solid #cbd5e1;border-radius:6px" />').join("")
+    + (pdf ? '<span class="chip">📄 '+esc(pdf.name)+'</span>' : "");
+
   $("vr-pdflabel").textContent = "Okunuyor…";
-  $("vr-pdfmsg").innerHTML = '<span class="muted">PDF yapay zekâ ile okunuyor, bekle…</span>';
+  $("vr-pdfmsg").innerHTML = '<span class="muted">Karne okunuyor'+(fotolar.length>1?" ("+fotolar.length+" sayfa)":"")+', bekle…</span>';
   try {
-    const b64 = await fileToB64(file);
-    const out = await callFn("ai-proxy", { action:"karne", pdfBase64:b64,
-      topicList: TOPICS.map(t=>({id:t.id,name:t.name,section:t.section})) });
+    const payload = { action:"karne", topicList: TOPICS.map(t=>({id:t.id,name:t.name,section:t.section})) };
+    if (pdf) payload.pdfBase64 = await fileToB64(pdf);
+    if (fotolar.length) payload.images = await Promise.all(
+      fotolar.map(async f => ({ b64: await fileToB64(f), mime: f.type || "image/jpeg" })));
+    const out = await callFn("ai-proxy", payload);
     const rows = out.results || [];
-    if (!rows.length) { $("vr-pdfmsg").innerHTML = '<span class="err">Karneden konu okunamadı. Konu bazlı kırılım içeren bir karne mi?</span>'; $("vr-pdflabel").textContent="PDF seç"; return; }
-    // tabloyu doldur (drawEntry tabloyu kurmuş olmalı)
-    let n = 0;
+    if (!rows.length) { $("vr-pdfmsg").innerHTML = '<span class="err">Karneden konu okunamadı. Konu bazlı kırılım içeren, net bir karne mi?</span>'; $("vr-pdflabel").textContent="PDF / fotoğraf seç"; return; }
+    let n = 0; const disari = [];
     rows.forEach(r => { const t = topicById(r.id); if (!t) return;
       const y = $("vy-"+r.id), b = $("vb-"+r.id);
-      if (y && b) { y.value = (+r.y||0); b.value = (+r.b||0); n++; } });
-    $("vr-pdfmsg").innerHTML = '<span class="ok">'+n+' konu dolduruldu. Kontrol et, sonra Kaydet\'e bas.</span>';
-    $("vr-pdflabel").textContent = "Başka PDF seç";
+      if (y && b) { y.value = (+r.y||0); b.value = (+r.b||0); n++; }
+      else disari.push(t.name); });
+    $("vr-pdfmsg").innerHTML = '<span class="ok">'+n+' konu dolduruldu. Kontrol et, sonra Kaydet\'e bas.</span>' +
+      (disari.length ? '<div class="muted">Bu denemenin dağılımında olmayan konular atlandı: '+esc(disari.join(", "))+' (Denemeler → Dağılım\'dan ekleyebilirsin.)</div>' : "");
+    $("vr-pdflabel").textContent = "Başka karne seç";
     ev.target.value = "";
   } catch(e){
     const m = String(e.message||e);
     $("vr-pdfmsg").innerHTML = '<span class="err">Okuma başarısız: '+esc(m)+'</span>' +
-      (m.includes("ANTHROPIC")||m.includes("credit") ? '<div class="muted">AI kapalı/bakiyesiz. Ücretsiz yol için aşağıdaki "Elle / belgeden giriş"i kullan.</div>' : '');
-    $("vr-pdflabel").textContent = "PDF seç";
+      (m.indexOf("anahtar")>-1||m.indexOf("ANTHROPIC")>-1||m.indexOf("GEMINI")>-1||m.indexOf("credit")>-1
+        ? '<div class="muted">AI kapalı/bakiyesiz. Ücretsiz yol: aşağıdaki "Elle / belgeden giriş".</div>' : '');
+    $("vr-pdflabel").textContent = "PDF / fotoğraf seç";
   }
 });
 
@@ -492,70 +465,263 @@ $("vr-kaydet").onclick = async () => {
 
 /* ---- teşhis + rapor ---- */
 $("ts-ogrenci").onchange = drawDiag;
+
+/* ===== Teşhis çekirdeği: konu bazlı toplam + deneme bazlı seyir ===== */
 async function fetchAgg(sid){
   const { data } = await sb.from("results").select("topic_id,count,wrong,blank,correct").eq("student_id",sid).gt("count",0);
   const m = {};
   (data||[]).forEach(r => { const a = m[r.topic_id] = m[r.topic_id] || {C:0,D:0,Y:0,B:0};
     a.C+=r.count; a.D+=r.correct; a.Y+=r.wrong; a.B+=r.blank; });
-  return Object.entries(m).map(([tid,a]) => ({ t: topicById(tid), ...a, s: a.D/a.C })).filter(x=>x.t);
+  return Object.entries(m).map(([tid,a]) => ({ t: topicById(tid), ...a, s: a.D/a.C,
+    yR: a.Y/a.C, bR: a.B/a.C })).filter(x=>x.t);
 }
+/* Deneme bazlı: her deneme için TYT/AYT net + konu başarısı (trend için) */
+async function fetchByExam(sid){
+  const { data } = await sb.from("results").select("exam_id,topic_id,count,wrong,blank,correct").eq("student_id",sid).gt("count",0);
+  const byExam = {};
+  (data||[]).forEach(r => {
+    const t = topicById(r.topic_id); if (!t) return;
+    const e = byExam[r.exam_id] = byExam[r.exam_id] || { TYT:{D:0,Y:0,B:0,C:0}, AYT:{D:0,Y:0,B:0,C:0}, konu:{} };
+    const k = e[t.section]; k.D+=r.correct; k.Y+=r.wrong; k.B+=r.blank; k.C+=r.count;
+    e.konu[r.topic_id] = { D:r.correct, C:r.count };
+  });
+  return EXAMS.filter(x=>byExam[x.id]).map(x => {
+    const e = byExam[x.id];
+    const net = (o) => o.C ? +(o.D - o.Y/4).toFixed(2) : null;
+    return { exam:x, tytNet:net(e.TYT), aytNet:net(e.AYT),
+             tytC:e.TYT.C, aytC:e.AYT.C, konu:e.konu,
+             basari: (e.TYT.C+e.AYT.C) ? (e.TYT.D+e.AYT.D)/(e.TYT.C+e.AYT.C) : null };
+  }).sort((a,b)=>(a.exam.exam_date||"").localeCompare(b.exam.exam_date||""));
+}
+/* Sınıf ortalaması (konu bazlı) — karşılaştırma için */
+async function fetchClassAvg(){
+  const { data } = await sb.from("results").select("topic_id,count,correct").gt("count",0);
+  const m = {};
+  (data||[]).forEach(r => { const a = m[r.topic_id] = m[r.topic_id] || {C:0,D:0};
+    a.C+=r.count; a.D+=r.correct; });
+  const out = {}; Object.entries(m).forEach(([tid,a]) => out[tid] = a.C ? a.D/a.C : null);
+  return out;
+}
+/* Hata profili: yanlış baskın = kavram yanılgısı, boş baskın = eksik/zaman */
+function hataProfili(x){
+  if (x.yR >= 0.30 && x.yR > x.bR) return { ad:"Kavram yanılgısı", renk:"#e11d48", oneri:"Yapıyor ama hatalı: tanım/kural tekrarı + hata analizi" };
+  if (x.bR >= 0.30 && x.bR > x.yR) return { ad:"Konu eksiği / zaman", renk:"#f59e0b", oneri:"Girmiyor: temel anlatım + bol temel soru, süre çalışması" };
+  if (x.s >= 0.80) return { ad:"Sağlam", renk:"#10b981", oneri:"Koruma: seyrek pekiştirme, zor soru" };
+  return { ad:"Karma", renk:"#64748b", oneri:"Hem kavram hem hız: orta düzey karışık set" };
+}
+function trendOf(seri){
+  const v = seri.filter(x=>x.basari!=null).map(x=>x.basari);
+  if (v.length < 2) return { yon:"—", fark:0, renk:"#94a3b8", ad:"Yetersiz veri" };
+  const ilk = v.slice(0, Math.max(1,Math.floor(v.length/2)));
+  const son = v.slice(Math.floor(v.length/2));
+  const ort = a => a.reduce((x,y)=>x+y,0)/a.length;
+  const fark = ort(son) - ort(ilk);
+  if (fark >= 0.05) return { yon:"▲", fark, renk:"#10b981", ad:"Yükseliyor" };
+  if (fark <= -0.05) return { yon:"▼", fark, renk:"#e11d48", ad:"Geriliyor" };
+  return { yon:"■", fark, renk:"#64748b", ad:"Yatay" };
+}
+/* Tutarlılık: denemeler arası başarı standart sapması */
+function tutarlilik(seri){
+  const v = seri.filter(x=>x.basari!=null).map(x=>x.basari);
+  if (v.length < 2) return null;
+  const ort = v.reduce((a,b)=>a+b,0)/v.length;
+  const sd = Math.sqrt(v.reduce((a,b)=>a+(b-ort)**2,0)/v.length);
+  return { sd, ad: sd < 0.07 ? "İstikrarlı" : sd < 0.15 ? "Dalgalı" : "Çok değişken" };
+}
+
+let TS = { sid:null, agg:[], seri:[], sinif:{} };
+
 async function drawDiag(){
   const sid = $("ts-ogrenci").value;
+  TS.sid = sid;
   $("ts-raporkart").classList.toggle("hide", !sid);
+  $("ts-yazdir").disabled = !sid;
   $("ts-rapor").classList.add("hide"); $("ts-raporbtn").classList.add("hide");
-  if (!sid) { $("ts-govde").textContent = "Öğrenci seç."; return; }
-  const agg = await fetchAgg(sid);
-  if (!agg.length) { $("ts-govde").textContent = "Bu öğrenci için ölçülmüş veri yok."; return; }
-  let html = "";
+  if (!sid) { $("ts-govde").innerHTML = '<div class="card muted">Değerlendirme için öğrenci seç.</div>'; return; }
+  $("ts-govde").innerHTML = '<div class="card muted">Değerlendirme hazırlanıyor…</div>';
+  const [agg, seri, sinif] = await Promise.all([fetchAgg(sid), fetchByExam(sid), fetchClassAvg()]);
+  TS.agg = agg; TS.seri = seri; TS.sinif = sinif;
+  if (!agg.length) { $("ts-govde").innerHTML = '<div class="card muted">Bu öğrenci için ölçülmüş veri yok. Veri Girişi sekmesinden deneme sonucu ekle.</div>'; return; }
+
+  const st = STUDENTS.find(x=>x.id===sid);
+  const tr = trendOf(seri), tut = tutarlilik(seri);
+  const sonTyt = [...seri].reverse().find(x=>x.tytNet!=null);
+  const sonAyt = [...seri].reverse().find(x=>x.aytNet!=null);
+  const ortTyt = seri.filter(x=>x.tytNet!=null);
+  const ortAyt = seri.filter(x=>x.aytNet!=null);
+  const ort = a => a.length ? (a.reduce((x,y)=>x+y,0)/a.length) : null;
+  const tytOrt = ort(ortTyt.map(x=>x.tytNet)), aytOrt = ort(ortAyt.map(x=>x.aytNet));
+  const genel = agg.reduce((a,x)=>a+x.D,0) / agg.reduce((a,x)=>a+x.C,0);
+
+  /* --- 1. ÖZET --- */
+  let html = '<div class="card"><h1 style="font-size:16px;margin-bottom:2px">'+esc(st?.name||"")+' — Değerlendirme Raporu</h1>'+
+    '<div class="muted" style="margin-bottom:10px">'+seri.length+' deneme · '+agg.length+' ölçülmüş konu · '+new Date().toLocaleDateString("tr-TR")+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">'+
+      kutu("TYT net (ort.)", tytOrt!=null?tytOrt.toFixed(1):"—", sonTyt?("son: "+sonTyt.tytNet):"") +
+      kutu("AYT net (ort.)", aytOrt!=null?aytOrt.toFixed(1):"—", sonAyt?("son: "+sonAyt.aytNet):"") +
+      kutu("Genel başarı", "%"+Math.round(genel*100), sevAd(genel), sevColor(genel)) +
+      kutu("Gidişat", tr.yon+" "+tr.ad, (tr.fark?((tr.fark>0?"+":"")+Math.round(tr.fark*100)+" puan"):""), tr.renk) +
+      (tut ? kutu("Tutarlılık", tut.ad, "sapma ±"+Math.round(tut.sd*100), tut.sd<0.07?"#10b981":tut.sd<0.15?"#f59e0b":"#e11d48") : "") +
+    '</div></div>';
+
+  /* --- 2. DENEME SEYRİ --- */
+  if (seri.length) {
+    html += '<div class="card"><h1 style="font-size:15px">Deneme seyri</h1><div style="overflow-x:auto"><table><tr><th>Deneme</th><th>Tarih</th><th>TYT net</th><th>AYT net</th><th>Başarı</th></tr>'+
+      seri.map(x => '<tr><td>'+esc(x.exam.name)+'</td><td class="muted">'+(x.exam.exam_date||"")+'</td>'+
+        '<td>'+(x.tytNet!=null?x.tytNet:"—")+'</td><td>'+(x.aytNet!=null?x.aytNet:"—")+'</td>'+
+        '<td style="color:'+sevColor(x.basari)+';font-weight:700">%'+Math.round(x.basari*100)+'</td></tr>').join("")+
+      '</table></div></div>';
+  }
+
+  /* --- 3. HATA PROFİLİ ÖZETİ --- */
+  const kav = agg.filter(x=>hataProfili(x).ad==="Kavram yanılgısı");
+  const eks = agg.filter(x=>hataProfili(x).ad==="Konu eksiği / zaman");
+  const sag = agg.filter(x=>x.s>=0.80);
+  html += '<div class="card"><h1 style="font-size:15px">Hata profili</h1>'+
+    '<p class="muted">Yanlış baskın konular <b>kavram yanılgısına</b>, boş baskın konular <b>konu eksiğine/zaman sorununa</b> işaret eder. Müdahale türü buna göre değişir.</p>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">'+
+      kutu("Kavram yanılgısı", kav.length+" konu", kav.slice(0,3).map(x=>x.t.name).join(", "), "#e11d48") +
+      kutu("Konu eksiği / zaman", eks.length+" konu", eks.slice(0,3).map(x=>x.t.name).join(", "), "#f59e0b") +
+      kutu("Sağlam", sag.length+" konu", sag.slice(0,3).map(x=>x.t.name).join(", "), "#10b981") +
+    '</div></div>';
+
+  /* --- 4. ÖNCELİKLİ MÜDAHALE PLANI --- */
+  const plan = agg.filter(x=>x.s<0.65)
+    .map(x => ({ ...x, oncelik: (x.t.default_count||0.5) * (1-x.s) }))
+    .sort((a,b)=>b.oncelik-a.oncelik);
+  if (plan.length) {
+    html += '<div class="card"><h1 style="font-size:15px">Öncelikli müdahale planı</h1>'+
+      '<p class="muted">Sıralama = <b>sınavdaki soru payı × mevcut eksik</b>. Yukarıdan başlamak en yüksek net kazancını verir.</p>'+
+      '<div style="overflow-x:auto"><table><tr><th>#</th><th>Konu</th><th>Başarı</th><th>D/Y/B</th><th>Tanı</th><th>Önerilen müdahale</th><th>Sınıf ort.</th></tr>'+
+      plan.map((x,i) => { const hp = hataProfili(x); const so = TS.sinif[x.t.id];
+        return '<tr><td><b>'+(i+1)+'</b></td><td>'+esc(x.t.name)+' <span class="muted">'+x.t.section+'</span></td>'+
+        '<td style="color:'+sevColor(x.s)+';font-weight:700">%'+Math.round(x.s*100)+'</td>'+
+        '<td class="muted">'+x.D+'/'+x.Y+'/'+x.B+'</td>'+
+        '<td style="color:'+hp.renk+'">'+hp.ad+'</td><td class="muted">'+hp.oneri+'</td>'+
+        '<td class="muted">'+(so!=null?("%"+Math.round(so*100)+(x.s<so-0.1?" ↓":x.s>so+0.1?" ↑":"")):"—")+'</td></tr>'; }).join("")+
+      '</table></div></div>';
+  } else html += '<div class="card"><h1 style="font-size:15px">Öncelikli müdahale planı</h1><p class="ok">Eşik altı (%65) konu yok — pekiştirme ve hız çalışmasına geçilebilir.</p></div>';
+
+  /* --- 5. KONU HARİTASI --- */
+  html += '<div class="card"><h1 style="font-size:15px">Konu haritası</h1>';
   for (const sec of ["TYT","AYT"]) {
     const list = agg.filter(x=>x.t.section===sec).sort((a,b)=>(a.t.grp||"").localeCompare(b.t.grp||"")||a.s-b.s);
     if (!list.length) continue;
-    html += '<h1 style="font-size:14px;margin:10px 0 2px">'+sec+'</h1>';
+    html += '<h2 style="font-size:13px;margin:10px 0 2px">'+sec+'</h2>';
     let grp = null;
     for (const x of list) {
       if (x.t.grp !== grp) { grp = x.t.grp; html += '<div class="grp">'+esc(grp)+'</div>'; }
+      const hp = hataProfili(x); const so = TS.sinif[x.t.id];
       html += '<div class="li"><span style="flex:1">'+esc(x.t.name)+'</span>'+
+        '<span class="chip" style="color:'+hp.renk+'">'+hp.ad+'</span>'+
         '<span class="chip">D'+x.D+' Y'+x.Y+' B'+x.B+'</span>'+
+        (so!=null?'<span class="chip muted">sınıf %'+Math.round(so*100)+'</span>':"")+
         '<div class="bar"><span style="width:'+Math.round(x.s*100)+'%;background:'+sevColor(x.s)+'"></span></div>'+
         '<span class="pct" style="color:'+sevColor(x.s)+'">%'+Math.round(x.s*100)+'</span></div>';
     }
   }
-  const zayif = agg.filter(x=>x.s<.65).sort((a,b)=>((b.t.default_count||.5)*(1-b.s))-((a.t.default_count||.5)*(1-a.s)));
-  if (zayif.length) html += '<h1 style="font-size:14px;margin:14px 0 4px">Öncelikli çalışma planı</h1>' +
-    zayif.map((x,i)=>'<div class="li"><span class="chip">'+(i+1)+'</span><span style="flex:1">'+esc(x.t.name)+' · '+x.t.section+'</span><span class="pct" style="color:'+sevColor(x.s)+'">%'+Math.round(x.s*100)+'</span></div>').join("");
+  html += '</div>';
   $("ts-govde").innerHTML = html;
 }
+function kutu(baslik, deger, alt, renk){
+  return '<div style="border:1px solid var(--bd);border-radius:10px;padding:10px">'+
+    '<div class="muted" style="font-size:11px">'+esc(baslik)+'</div>'+
+    '<div style="font-size:19px;font-weight:700;color:'+(renk||"#0f172a")+'">'+esc(String(deger))+'</div>'+
+    (alt?'<div class="muted" style="font-size:11px">'+esc(String(alt))+'</div>':"")+'</div>';
+}
+function sevAd(s){ return s<0.40?"Kritik":s<0.65?"Gelişmeli":s<0.80?"İyi":"Çok iyi"; }
+
+$("ts-yazdir").onclick = () => {
+  const st = STUDENTS.find(x=>x.id===TS.sid);
+  const w = window.open("", "_blank");
+  if (!w) { alert("Pop-up iznini aç."); return; }
+  w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Değerlendirme Raporu</title><style>'+
+    'body{font-family:Segoe UI,Arial;color:#0f172a;padding:24px;line-height:1.45;font-size:13px}'+
+    'h1{font-size:17px}h2{font-size:13px;color:#0f766e;margin:12px 0 4px}'+
+    'table{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0}'+
+    'td,th{padding:4px 6px;border-bottom:1px solid #e2e8f0;text-align:left}'+
+    '.card{margin-bottom:14px;page-break-inside:avoid}.muted{color:#64748b}.grp{color:#0f766e;font-weight:700;font-size:11px;margin-top:6px}'+
+    '.li{display:flex;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid #f1f5f9}'+
+    '.chip{font-size:10px;background:#f1f5f9;padding:1px 6px;border-radius:9px}'+
+    '.bar{flex:0 0 90px;height:7px;background:#eef2f6;border-radius:9px;overflow:hidden}.bar>span{display:block;height:100%}'+
+    '.pct{width:42px;text-align:right;font-weight:700}.ok{color:#059669}'+
+    '</style></head><body>'+$("ts-govde").innerHTML+
+    '<script>window.onload=function(){window.print()}<\/script></body></html>');
+  w.document.close();
+};
+
 $("ts-raporolustur").onclick = async () => {
-  const sid = $("ts-ogrenci").value; if (!sid) return;
+  const sid = TS.sid; if (!sid) return;
   const st = STUDENTS.find(s=>s.id===sid);
-  const agg = await fetchAgg(sid);
+  const agg = TS.agg, seri = TS.seri;
   if (!agg.length) { alert("Rapor için veri yok."); return; }
-  const zayif = agg.filter(x=>x.s<.65).sort((a,b)=>a.s-b.s);
-  const guclu = agg.filter(x=>x.s>=.80).sort((a,b)=>b.s-a.s).slice(0,4);
-  let r = "MATEMATİK GELİŞİM RAPORU\n";
-  r += "Öğrenci: " + (st?.name||"") + "\nTarih: " + new Date().toLocaleDateString("tr-TR") + "\n\n";
-  if (guclu.length) r += "GÜÇLÜ KONULAR:\n" + guclu.map(x=>"• "+x.t.name+" (%"+Math.round(x.s*100)+")").join("\n") + "\n\n";
-  if (zayif.length) {
-    r += "ÖNCELİKLİ ÇALIŞILMASI GEREKEN KONULAR:\n" + zayif.map((x,i)=>(i+1)+") "+x.t.name+" ["+x.t.section+"] — başarı %"+Math.round(x.s*100)+(x.Y> x.B?" (yanlış ağırlıklı: kavram tekrarı önerilir)":x.B>0?" (boş ağırlıklı: konu eksiği/zaman)":"")).join("\n") + "\n\n";
-    r += "ÖNERİ: Yukarıdaki sıra, sınavdaki soru payı ile mevcut eksik birlikte değerlendirilerek oluşturulmuştur; çalışmaya 1. sıradan başlanması en yüksek net kazancını sağlar.\n";
-  } else r += "Eşik altında konu kalmadı — pekiştirme dönemine geçilebilir.\n";
-  r += "\nÖğretmen: (ad-soyad)";
+  const tr = trendOf(seri), tut = tutarlilik(seri);
+  const genel = agg.reduce((a,x)=>a+x.D,0) / agg.reduce((a,x)=>a+x.C,0);
+  const ort = a => a.length ? (a.reduce((x,y)=>x+y,0)/a.length) : null;
+  const tytOrt = ort(seri.filter(x=>x.tytNet!=null).map(x=>x.tytNet));
+  const aytOrt = ort(seri.filter(x=>x.aytNet!=null).map(x=>x.aytNet));
+  const plan = agg.filter(x=>x.s<0.65).map(x=>({...x, o:(x.t.default_count||0.5)*(1-x.s)})).sort((a,b)=>b.o-a.o);
+  const guclu = agg.filter(x=>x.s>=0.80).sort((a,b)=>b.s-a.s).slice(0,5);
+
+  let r = "MATEMATİK DEĞERLENDİRME RAPORU\n";
+  r += "═".repeat(42) + "\n";
+  r += "Öğrenci : " + (st?.name||"") + "\n";
+  r += "Tarih   : " + new Date().toLocaleDateString("tr-TR") + "\n";
+  r += "Kapsam  : " + seri.length + " deneme, " + agg.length + " ölçülmüş konu\n\n";
+
+  r += "1) GENEL DURUM\n";
+  if (tytOrt!=null) r += "   • TYT ortalama net : " + tytOrt.toFixed(1) + "\n";
+  if (aytOrt!=null) r += "   • AYT ortalama net : " + aytOrt.toFixed(1) + "\n";
+  r += "   • Genel başarı     : %" + Math.round(genel*100) + " (" + sevAd(genel) + ")\n";
+  r += "   • Gidişat          : " + tr.ad + (tr.fark ? " (" + (tr.fark>0?"+":"") + Math.round(tr.fark*100) + " puan)" : "") + "\n";
+  if (tut) r += "   • Tutarlılık       : " + tut.ad + " (denemeler arası sapma ±" + Math.round(tut.sd*100) + " puan)\n";
+  r += "\n";
+
+  if (guclu.length) {
+    r += "2) GÜÇLÜ KONULAR\n";
+    guclu.forEach(x => r += "   • " + x.t.name + " (%" + Math.round(x.s*100) + ")\n");
+    r += "\n";
+  }
+
+  if (plan.length) {
+    r += "3) ÖNCELİKLİ ÇALIŞMA PLANI\n";
+    r += "   (Sıralama: sınavdaki soru payı × mevcut eksik)\n";
+    plan.slice(0,8).forEach((x,i) => {
+      const hp = hataProfili(x);
+      r += "   " + (i+1) + ". " + x.t.name + " [" + x.t.section + "] — %" + Math.round(x.s*100) +
+           " | D:" + x.D + " Y:" + x.Y + " B:" + x.B + "\n";
+      r += "      Tanı  : " + hp.ad + "\n";
+      r += "      Öneri : " + hp.oneri + "\n";
+    });
+    r += "\n";
+  } else r += "3) ÖNCELİKLİ ÇALIŞMA PLANI\n   Eşik altı konu kalmadı; pekiştirme ve hız dönemine geçilebilir.\n\n";
+
+  r += "4) DEĞERLENDİRME VE YÖNTEM\n";
+  const kavN = agg.filter(x=>hataProfili(x).ad==="Kavram yanılgısı").length;
+  const eksN = agg.filter(x=>hataProfili(x).ad==="Konu eksiği / zaman").length;
+  if (kavN > eksN && kavN)      r += "   Hata profili ağırlıklı olarak KAVRAM YANILGISI yönünde: öğrenci soruya giriyor\n   ancak hatalı sonuçlanıyor. Öncelik, yeni konu değil; tanım-kural tekrarı ve\n   yapılan hataların analizidir.\n";
+  else if (eksN > kavN && eksN) r += "   Hata profili ağırlıklı olarak KONU EKSİĞİ / ZAMAN yönünde: öğrenci soruya\n   girmiyor. Öncelik temel anlatım, bol temel düzey soru ve süre çalışmasıdır.\n";
+  else                          r += "   Hata profili karma görünüyor: hem kavram tekrarı hem hız çalışması birlikte\n   yürütülmelidir.\n";
+  r += "\n   Bu rapor, deneme sonuçlarının konu bazlı çözümlenmesiyle üretilmiştir.\n";
+  r += "   İlke: önce doğru teşhis, sonra profile uygun müdahale.\n\n";
+  r += "Öğretmen: ______________________\n";
+
   $("ts-rapor").value = r;
   $("ts-rapor").classList.remove("hide"); $("ts-raporbtn").classList.remove("hide");
-  $("ts-raporMsg").textContent = st?.email ? "" : "Not: öğrencinin gerçek e-postası kayıtlı değil (Öğrenciler sekmesinden ekle).";
+  $("ts-raporMsg").textContent = st?.email ? "" : "Not: öğrencinin e-postası kayıtlı değil (Öğrenciler sekmesinden ekle).";
 };
 $("ts-mail").onclick = () => {
-  const sid = $("ts-ogrenci").value; const st = STUDENTS.find(s=>s.id===sid);
-  if (!st?.email) { alert("Önce Öğrenciler sekmesinden gerçek e-posta ekle."); return; }
-  const body = $("ts-rapor").value;
+  const st = STUDENTS.find(s=>s.id===TS.sid);
+  if (!st?.email) { alert("Önce Öğrenciler sekmesinden e-posta ekle."); return; }
   location.href = "mailto:" + encodeURIComponent(st.email) +
-    "?subject=" + encodeURIComponent("Matematik Gelişim Raporu — " + st.name) +
-    "&body=" + encodeURIComponent(body);
+    "?subject=" + encodeURIComponent("Matematik Değerlendirme Raporu — " + st.name) +
+    "&body=" + encodeURIComponent($("ts-rapor").value);
 };
 $("ts-kopyala").onclick = async () => {
   await navigator.clipboard.writeText($("ts-rapor").value);
   $("ts-raporMsg").textContent = "Kopyalandı.";
 };
+
 
 /* ---- havuz ---- */
 function fillTopicSelects(){
@@ -766,7 +932,8 @@ $("hv-pdf").onclick = async () => {
     body += '<h2>'+esc(t.section)+' · '+esc(t.name)+'</h2>';
     qs.forEach(x => { n++;
       const opts = ["A","B","C","D","E"].map(L => x.options?.[L]!=null?'<div class="opt"><b>'+L+')</b> '+esc(x.options[L])+'</div>':"").join("");
-      body += '<div class="q"><div class="qh">'+n+'.</div><div><div>'+esc(x.stem)+'</div><div class="opts">'+opts+'</div>'+
+      const img = x.image_url ? '<img class="qimg" src="'+esc(x.image_url)+'" />' : "";
+      body += '<div class="q"><div class="qh">'+n+'.</div><div>'+(x.stem?'<div>'+esc(x.stem)+'</div>':"")+img+'<div class="opts">'+opts+'</div>'+
         (cevapli?'<div class="ans">Cevap: <b>'+esc(x.correct)+'</b>'+(x.solution?' — '+esc(x.solution):"")+'</div>':"")+'</div></div>';
     });
   }
@@ -777,9 +944,141 @@ $("hv-pdf").onclick = async () => {
    'h2{font-size:14px;color:#0f766e;border-left:3px solid #0f766e;padding-left:8px;margin:16px 0 6px}'+
    '.q{display:flex;gap:8px;margin:9px 0;page-break-inside:avoid}.qh{font-weight:bold;min-width:22px}'+
    '.opts{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:4px;font-size:14px}.ans{color:#065f46;font-size:13px;margin-top:4px}'+
+   '.qimg{max-width:96%;max-height:340px;display:block;margin:6px 0;border-radius:6px}@media print{.qimg{max-height:300px}}'+
    '</style></head><body><h1>Konu Bazlı Soru Listesi'+(cevapli?' (Cevaplı — Öğretmen)':'')+'</h1>'+body+
-   '<script>window.onload=function(){window.print()}<\/script></body></html>');
+   '<script>window.onload=function(){setTimeout(function(){window.print()},600)}<\/script></body></html>');
   w.document.close();
+};
+
+/* ================= SORU SETİ PDF ================= */
+let SE = { son: null };
+function seKonularCiz(){
+  let html = "";
+  for (const sec of ["TYT","AYT"]) {
+    const list = TOPICS.filter(t=>t.section===sec);
+    let grp = null;
+    html += '<div class="grp" style="margin-top:6px">'+sec+'</div>';
+    for (const t of list) {
+      if (t.grp !== grp) { grp = t.grp; html += '<div style="font-size:11px;color:#94a3b8;margin:6px 0 2px">'+esc(grp)+'</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 10px">'; }
+      html += '<label style="font-size:13px;display:flex;align-items:center;gap:6px;padding:2px 0"><input type="checkbox" class="se-k" value="'+t.id+'" style="width:auto"> '+esc(t.name)+'</label>';
+    }
+    html += '</div>';
+  }
+  $("se-konular").innerHTML = html;
+  document.querySelectorAll(".se-k").forEach(c => c.onchange = seSayac);
+  seSayac();
+}
+function seSayac(){
+  const n = document.querySelectorAll(".se-k:checked").length;
+  $("se-secim").textContent = n ? n+" konu seçili" : "konu seçilmedi";
+}
+window.seSec = async (mod) => {
+  const boxes = [...document.querySelectorAll(".se-k")];
+  if (mod === "temizle") boxes.forEach(b=>b.checked=false);
+  else if (mod === "tyt") boxes.forEach(b=>{ const t=topicById(b.value); b.checked = t && t.section==="TYT"; });
+  else if (mod === "ayt") boxes.forEach(b=>{ const t=topicById(b.value); b.checked = t && t.section==="AYT"; });
+  else if (mod === "zayif") {
+    const sid = $("se-ogrenci").value;
+    if (!sid) { alert("Önce öğrenci seç."); return; }
+    const agg = await fetchAgg(sid);
+    const zayif = new Set(agg.filter(x=>x.s<.65).map(x=>x.t.id));
+    if (!zayif.size) { alert("Bu öğrencide eşik altı konu yok ya da veri girilmemiş."); return; }
+    boxes.forEach(b => b.checked = zayif.has(b.value));
+  }
+  seSayac();
+};
+$("se-uret").onclick = async () => {
+  const tids = [...document.querySelectorAll(".se-k:checked")].map(c=>c.value);
+  const zorluklar = [...document.querySelectorAll(".se-z:checked")].map(c=>c.value);
+  const perT = +$("se-adet").value, sid = $("se-ogrenci").value;
+  $("se-msg").innerHTML = ""; $("se-ata").disabled = true;
+  if (!tids.length) { $("se-msg").innerHTML = '<div class="err">En az bir konu seç.</div>'; return; }
+  if (!zorluklar.length) { $("se-msg").innerHTML = '<div class="err">En az bir zorluk seç.</div>'; return; }
+  $("se-uret").disabled = true; $("se-msg").innerHTML = '<span class="muted">Havuzdan seçiliyor…</span>';
+  try {
+    let usedSet = new Set();
+    if (sid && !$("se-tekrar").checked) {
+      const { data: used } = await sb.from("question_usage").select("question_id").eq("student_id", sid);
+      usedSet = new Set((used||[]).map(u=>u.question_id));
+    }
+    const secilen = [], eksik = [];
+    for (const tid of tids) {
+      const t = topicById(tid);
+      const { data: qs } = await sb.from("questions").select("*")
+        .eq("topic_id", tid).eq("status","dogrulandi").in("difficulty", zorluklar).limit(50);
+      const havuz = (qs||[]).filter(q => !usedSet.has(q.id));
+      for (let i = havuz.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [havuz[i],havuz[j]]=[havuz[j],havuz[i]]; }
+      const alinan = havuz.slice(0, perT);
+      if (alinan.length < perT) eksik.push(t.name+" ("+alinan.length+"/"+perT+")");
+      alinan.forEach(q => secilen.push({ t, q }));
+    }
+    if (!secilen.length) { $("se-msg").innerHTML = '<div class="err">Seçilen konu+zorlukta havuzda onaylı soru yok. Havuz sekmesinden ekleyip onayla.</div>'; $("se-uret").disabled=false; return; }
+    if ($("se-sira").value === "karisik") for (let i=secilen.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [secilen[i],secilen[j]]=[secilen[j],secilen[i]]; }
+    SE.son = { secilen, sid };
+    $("se-ata").disabled = !sid;
+    $("se-msg").innerHTML = '<div class="ok">'+secilen.length+' soru seçildi. PDF penceresi açılıyor.</div>' +
+      (eksik.length ? '<div class="muted">Havuz yetersiz: '+esc(eksik.join(", "))+'</div>' : "");
+    sePdf(secilen, sid);
+  } catch(e){ $("se-msg").innerHTML = '<div class="err">'+esc(e.message||e)+'</div>'; }
+  $("se-uret").disabled = false;
+};
+function sePdf(secilen, sid){
+  const cevapli = $("se-cevapli").checked;
+  const st = STUDENTS.find(x=>x.id===sid);
+  const bugun = new Date().toLocaleDateString("tr-TR");
+  const grupla = $("se-sira").value === "konu";
+  let body = "", n = 0, sonGrp = null;
+  for (const x of secilen) {
+    if (grupla && x.t.id !== sonGrp) { sonGrp = x.t.id; body += '<h2>'+esc(x.t.section)+' · '+esc(x.t.name)+'</h2>'; }
+    n++;
+    const q = x.q;
+    const opts = ["A","B","C","D","E"].map(L => q.options?.[L]!=null?'<div class="opt"><b>'+L+')</b> '+esc(q.options[L])+'</div>':"").join("");
+    const img = q.image_url ? '<img class="qimg" src="'+esc(q.image_url)+'" />' : "";
+    body += '<div class="q"><div class="qh">'+n+'.</div><div>'+(q.stem?'<div>'+esc(q.stem)+'</div>':"")+img+'<div class="opts">'+opts+'</div></div></div>';
+  }
+  let anahtar = "";
+  if (cevapli) {
+    let i = 0;
+    anahtar = '<div class="pagebreak"></div><h1>Cevap Anahtarı</h1><div class="key">' +
+      secilen.map(x => { i++; return '<span><b>'+i+'.</b> '+esc(x.q.correct)+'</span>'; }).join("") + '</div>' +
+      '<h2 style="margin-top:14px">Çözümler</h2>' +
+      secilen.map((x,j) => x.q.solution ? '<div class="sol"><b>'+(j+1)+'.</b> '+esc(x.q.solution)+'</div>' : "").join("");
+  }
+  const w = window.open("", "_blank");
+  if (!w) { alert("Pop-up iznini aç."); return; }
+  w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Soru Seti</title><style>'+
+   'body{font-family:Segoe UI,Arial;color:#0f172a;padding:26px;line-height:1.5}'+
+   '.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0f766e;padding-bottom:6px;margin-bottom:10px}'+
+   'h1{font-size:19px;margin:0}.sub{font-size:12px;color:#64748b;text-align:right}'+
+   'h2{font-size:14px;color:#0f766e;border-left:3px solid #0f766e;padding-left:8px;margin:16px 0 6px}'+
+   '.q{display:flex;gap:8px;margin:10px 0;page-break-inside:avoid}.qh{font-weight:bold;min-width:24px}'+
+   '.opts{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:4px;font-size:14px}'+
+   '.qimg{max-width:96%;max-height:340px;display:block;margin:6px 0;border-radius:6px}'+
+   '.key{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;font-size:14px}'+
+   '.sol{font-size:13px;color:#475569;margin:4px 0;page-break-inside:avoid}'+
+   '.pagebreak{page-break-before:always}@media print{body{padding:14px}.qimg{max-height:300px}}'+
+   '</style></head><body>'+
+   '<div class="hd"><h1>Soru Seti</h1><div class="sub">'+(st?'<b>'+esc(st.name)+'</b><br>':'')+bugun+'<br>'+n+' soru</div></div>'+
+   body+anahtar+'<script>window.onload=function(){setTimeout(function(){window.print()},600)}<\/script></body></html>');
+  w.document.close();
+}
+$("se-ata").onclick = async () => {
+  if (!SE.son || !SE.son.sid) return;
+  const { secilen, sid } = SE.son;
+  $("se-ata").disabled = true;
+  try {
+    const { data: bk, error: bErr } = await sb.from("booklets")
+      .insert({ student_id: sid, title: "Soru Seti — " + new Date().toLocaleDateString("tr-TR") }).select().single();
+    if (bErr) throw bErr;
+    const items = secilen.map((x,i)=>({ booklet_id:bk.id, question_id:x.q.id, topic_id:x.q.topic_id,
+      qtype:x.q.qtype, difficulty:x.q.difficulty, stem:x.q.stem, options:x.q.options,
+      correct:x.q.correct, solution:x.q.solution, image_url:x.q.image_url, ord:i }));
+    const { error: iErr } = await sb.from("booklet_items").insert(items);
+    if (iErr) throw iErr;
+    await sb.from("question_usage").upsert(secilen.map(x=>({ question_id:x.q.id, student_id:sid, context:bk.id })),
+      { onConflict:"question_id,student_id", ignoreDuplicates:true });
+    $("se-msg").innerHTML = '<div class="ok">Öğrenciye atandı — portalında görünecek ('+items.length+' soru).</div>';
+  } catch(e){ $("se-msg").innerHTML = '<div class="err">'+esc(e.message||e)+'</div>'; $("se-ata").disabled = false; }
 };
 
 /* ---- kitapçık ---- */
