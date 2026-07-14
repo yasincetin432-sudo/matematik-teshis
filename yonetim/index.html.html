@@ -1,0 +1,1121 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0f766e" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<title>Matematik Teşhis Paneli — Yönetim</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--teal:#0f766e;--ink:#0f172a;--mut:#64748b;--bd:#e2e8f0}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:#f8fafc;color:var(--ink);font-size:15px}
+  .wrap{max-width:980px;margin:0 auto;padding:14px}
+  header{background:#fff;border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:9}
+  .hd{max-width:980px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:10px}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+  h1{font-size:16px;margin:0}
+  .sub{font-size:11px;color:var(--mut)}
+  .tabs{display:flex;gap:4px;overflow-x:auto;max-width:980px;margin:0 auto;padding:0 8px}
+  .tab{padding:9px 12px;border-bottom:2px solid transparent;color:#64748b;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap}
+  .tab.on{color:var(--teal);border-color:var(--teal)}
+  .card{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:14px;margin:12px 0}
+  label{font-size:12px;color:var(--mut);display:block;margin:8px 0 3px}
+  input,select,textarea{width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:9px;font-size:14px;background:#fff}
+  textarea{resize:vertical}
+  button{background:var(--teal);color:#fff;border:0;border-radius:9px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer}
+  button.ghost{background:#f1f5f9;color:#334155}
+  button.warn{background:#e11d48}
+  button:disabled{opacity:.45;cursor:default}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+  .row>div{flex:1;min-width:130px}
+  .li{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:14px}
+  .bar{flex:0 0 110px;height:8px;border-radius:99px;background:#eef2f6;overflow:hidden}
+  .bar>span{display:block;height:100%}
+  .pct{font-variant-numeric:tabular-nums;font-weight:700;width:44px;text-align:right;font-size:13px}
+  .grp{font-size:11px;color:var(--teal);font-weight:700;margin:10px 0 2px;text-transform:uppercase;letter-spacing:.03em}
+  .chip{font-size:11px;padding:2px 8px;border-radius:99px;background:#f1f5f9;color:#475569}
+  .chip.ok{background:#d1fae5;color:#065f46}.chip.tas{background:#fef3c7;color:#92400e}.chip.red{background:#fee2e2;color:#991b1b}
+  .err{color:#e11d48;font-size:13px;margin-top:6px}.ok{color:#059669;font-size:13px;margin-top:6px}
+  .muted{color:var(--mut);font-size:13px}
+  .hide{display:none}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:5px 6px;border-bottom:1px solid #f1f5f9;text-align:left}
+  td input{padding:5px;width:58px;text-align:center}
+  .qbox{border:1px solid var(--bd);border-radius:10px;padding:10px;margin:8px 0}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:5px;font-size:13px;color:#334155}
+  details>summary{cursor:pointer;color:var(--teal);font-size:13px;font-weight:600}
+  @media print{ header,.tabs,.no-print{display:none!important} body{background:#fff} .card{border:0} }
+</style>
+</head>
+<body>
+<header>
+  <div class="hd"><div class="logo">π</div>
+    <div style="flex:1"><h1>Matematik Teşhis Paneli</h1><div class="sub">Yönetim · YKS TYT &amp; AYT</div></div>
+    <button id="logout" class="ghost hide" style="padding:6px 10px;font-size:12px">Çıkış</button>
+  </div>
+  <div class="tabs hide" id="tabs">
+    <div class="tab on" data-t="ogr">Öğrenciler</div>
+    <div class="tab" data-t="den">Denemeler</div>
+    <div class="tab" data-t="veri">Veri Girişi</div>
+    <div class="tab" data-t="tes">Teşhis &amp; Rapor</div>
+    <div class="tab" data-t="hav">Soru Havuzu</div>
+    <div class="tab" data-t="set">Soru Seti PDF</div>
+    <div class="tab" data-t="kit">Kitapçık</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="p-login" class="card" style="max-width:420px;margin:40px auto">
+    <h1 style="margin-bottom:4px">Yetkili Girişi</h1>
+    <p class="sub">Supabase'de tanımlı öğretmen e-postası ve şifresiyle gir.</p>
+    <label>E-posta</label><input id="lg-mail" type="email" autocomplete="username" />
+    <label>Şifre</label><input id="lg-pass" type="password" autocomplete="current-password" />
+    <div style="margin-top:12px"><button id="lg-btn">Giriş yap</button></div>
+    <div id="lg-err" class="err"></div>
+  </div>
+
+  <!-- ÖĞRENCİLER -->
+  <div id="p-ogr" class="hide">
+    <div class="card">
+      <h1 style="font-size:15px">Yeni öğrenci hesabı</h1>
+      <p class="muted">Öğrenciye vereceğin <b>kod</b> ve <b>şifre</b> ile portal hesabı açılır. Gerçek e-posta rapor göndermek için (isteğe bağlı).</p>
+      <div class="row">
+        <div><label>Ad Soyad</label><input id="og-ad" /></div>
+        <div><label>Kod</label><input id="og-kod" placeholder="ör. elif2026" /></div>
+        <div><label>Şifre (≥6)</label><input id="og-sifre" /></div>
+        <div><label>Gerçek e-posta (ops.)</label><input id="og-mail" placeholder="veli/öğrenci e-postası" /></div>
+        <div style="flex:0"><button id="og-ekle">Hesap aç</button></div>
+      </div>
+      <div id="og-msg"></div>
+    </div>
+    <div class="card">
+      <h1 style="font-size:15px">Öğrenci bilgileri</h1>
+      <p class="muted">Kod ve şifreler yalnızca senin hesabında görünür (satır-düzeyi güvenlik). Bu listeyi kimseyle paylaşma.</p>
+      <div style="overflow-x:auto"><table id="og-tablo"><tr><th>Ad</th><th>Kod</th><th>Şifre</th><th>E-posta</th><th></th></tr></table></div>
+    </div>
+  </div>
+
+  <!-- DENEMELER -->
+  <div id="p-den" class="hide">
+    <div class="card">
+      <h1 style="font-size:15px">Yeni deneme</h1>
+      <div class="row">
+        <div><label>Ad</label><input id="dn-ad" placeholder="ör. 3D TYT-1" /></div>
+        <div><label>Tarih</label><input id="dn-tarih" type="date" /></div>
+        <div style="flex:0"><button id="dn-ekle">Ekle</button></div>
+      </div>
+    </div>
+    <div class="card"><h1 style="font-size:15px">Denemeler</h1><div id="dn-liste" class="muted">Yükleniyor…</div></div>
+  </div>
+
+  <!-- VERİ GİRİŞİ -->
+  <div id="p-veri" class="hide">
+    <div class="card">
+      <div class="row">
+        <div><label>Deneme</label><select id="vr-deneme"></select></div>
+        <div><label>Öğrenci</label><select id="vr-ogrenci"></select></div>
+      </div>
+
+      <!-- ASIL YOL: PDF YÜKLE -->
+      <div id="vr-pdfbox" style="margin-top:12px;border:2px dashed #99c9c2;border-radius:12px;padding:20px;text-align:center;background:#f0fbf9">
+        <div style="font-size:15px;font-weight:600;color:#0f766e">Karne PDF'ini yükle</div>
+        <div class="muted" style="margin:4px 0 12px">Öğrencinin konu bazlı deneme karnesini seç; sistem okuyup tabloyu doldursun. (Yapay zekâ ile okur — API anahtarı gerekir.)</div>
+        <label style="display:inline-block;background:#0f766e;color:#fff;padding:10px 18px;border-radius:9px;font-weight:600;cursor:pointer">
+          <span id="vr-pdflabel">PDF seç</span>
+          <input type="file" id="vr-pdf" accept="application/pdf" style="display:none" />
+        </label>
+        <div id="vr-pdfmsg" style="margin-top:8px"></div>
+      </div>
+
+      <details style="margin-top:12px"><summary>Elle / belgeden giriş (ücretsiz, AI'sız)</summary>
+        <p class="muted" style="margin-top:8px">Her satıra: <b>Konu adı ; Yanlış ; Boş</b> — örn. <code>Türev ; 3 ; 1</code>.</p>
+        <textarea id="vr-bulk" rows="4" placeholder="Türev ; 3 ; 1&#10;Limit ; 1 ; 2"></textarea>
+        <div style="margin-top:6px"><button class="ghost" id="vr-doldur">Doldur</button> <span id="vr-bulkmsg" class="muted"></span></div>
+      </details>
+
+      <div id="vr-tablo" style="margin-top:12px"></div>
+      <div class="no-print" style="margin-top:10px"><button id="vr-kaydet" disabled>Kaydet</button> <span id="vr-msg"></span></div>
+    </div>
+  </div>
+
+  <!-- TEŞHİS & RAPOR -->
+  <div id="p-tes" class="hide">
+    <div class="card">
+      <div class="row">
+        <div><label>Öğrenci</label><select id="ts-ogrenci"></select></div>
+        <div style="flex:0"><button class="ghost" id="ts-yazdir" disabled style="padding:9px 14px">Raporu yazdır / PDF</button></div>
+      </div>
+    </div>
+    <div id="ts-govde" class="muted" style="padding:0 4px">Değerlendirme için öğrenci seç.</div>
+    <div class="card hide" id="ts-raporkart">
+      <h1 style="font-size:15px">Veli / öğrenci raporu (metin)</h1>
+      <p class="muted">Raporu oluştur, metni kontrol et, sonra e-postaya aktar veya kopyala.</p>
+      <button class="ghost" id="ts-raporolustur">Raporu oluştur</button>
+      <textarea id="ts-rapor" rows="12" class="hide" style="margin-top:8px"></textarea>
+      <div id="ts-raporbtn" class="hide" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="ts-mail">E-posta ile gönder</button>
+        <button class="ghost" id="ts-kopyala">Kopyala</button>
+        <span id="ts-raporMsg" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SORU SETİ PDF -->
+  <div id="p-set" class="hide">
+    <div class="card">
+      <h1 style="font-size:16px;color:#0f766e">Öğrenciye özel soru seti hazırla</h1>
+      <p class="muted">Konuları seç, zorluk ve soru sayısını belirle → havuzdan sorular seçilip yazdırılabilir PDF üretilir. İstersen öğrenciye atayıp portalında da görünmesini sağlarsın.</p>
+      <div class="row">
+        <div><label>Öğrenci (ops. — başlıkta yazar / atama için)</label><select id="se-ogrenci"></select></div>
+        <div><label>Konu başına soru</label><select id="se-adet"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>8</option><option>10</option></select></div>
+        <div><label>Sıralama</label><select id="se-sira"><option value="konu">Konuya göre grupla</option><option value="karisik">Karışık</option></select></div>
+      </div>
+      <div class="row" style="margin-top:4px">
+        <div><label>Zorluk (birden çok seçilebilir)</label>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 0">
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" class="se-z" value="temel" style="width:auto"> temel</label>
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" class="se-z" value="kolay" style="width:auto"> kolay</label>
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" class="se-z" value="orta" checked style="width:auto"> orta</label>
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" class="se-z" value="zor" style="width:auto"> zor</label>
+          </div>
+        </div>
+        <div><label>Seçenekler</label>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 0">
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" id="se-cevapli" style="width:auto"> Cevap anahtarı ekle</label>
+            <label style="font-size:14px;color:#0f172a"><input type="checkbox" id="se-tekrar" style="width:auto"> Daha önce verilenleri de kullan</label>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <b style="font-size:14px">Konular</b>
+        <button class="ghost" style="padding:4px 10px;font-size:12px" onclick="seSec('zayif')">Zayıf konularımı seç</button>
+        <button class="ghost" style="padding:4px 10px;font-size:12px" onclick="seSec('tyt')">Tüm TYT</button>
+        <button class="ghost" style="padding:4px 10px;font-size:12px" onclick="seSec('ayt')">Tüm AYT</button>
+        <button class="ghost" style="padding:4px 10px;font-size:12px" onclick="seSec('temizle')">Temizle</button>
+        <span id="se-secim" class="muted"></span>
+      </div>
+      <div id="se-konular" style="max-height:280px;overflow-y:auto;border:1px solid var(--bd);border-radius:10px;padding:8px;margin-top:6px"></div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="se-uret" style="padding:11px 20px">PDF oluştur</button>
+        <button class="ghost" id="se-ata" disabled>Öğrenciye ata (portalda görünsün)</button>
+      </div>
+      <div id="se-msg"></div>
+    </div>
+    <div id="se-onizleme"></div>
+  </div>
+
+  <!-- KİTAPÇIK -->
+  <div id="p-kit" class="hide">
+    <div class="card no-print">
+      <div class="row">
+        <div><label>Öğrenci</label><select id="kt-ogrenci"></select></div>
+        <div><label>Konu başına soru</label><select id="kt-adet"><option>1</option><option selected>2</option><option>3</option></select></div>
+        <div style="flex:0"><button id="kt-olustur" disabled>Kitapçık oluştur ve ata</button></div>
+      </div>
+      <p class="muted">Zayıf konulara (&lt;%65) havuzdan <b>doğrulanmış</b> ve bu öğrenciye daha önce verilmemiş sorular seçilir.</p>
+      <div id="kt-zayif" class="muted"></div>
+      <div id="kt-msg"></div>
+    </div>
+    <div id="kt-onizleme"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = localStorage.getItem("sb_url") || "";
+const SUPABASE_ANON_KEY = localStorage.getItem("sb_key") || "";
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  document.body.innerHTML = '<div style="max-width:470px;margin:50px auto;font-family:system-ui;padding:22px;background:#fff;border:1px solid #e2e8f0;border-radius:14px">'
+   + '<h2 style="margin-top:0">İlk kurulum</h2>'
+   + '<p style="color:#64748b;font-size:14px">Supabase panosunda <b>Project Settings → API</b> sayfasındaki iki değeri yapıştır. Bir kez yapılır, bu cihazda saklanır.</p>'
+   + '<label style="font-size:13px;color:#64748b">Project URL</label>'
+   + '<input id="cf-url" style="width:100%;padding:9px;margin:4px 0 10px;border:1px solid #cbd5e1;border-radius:8px" placeholder="https://xxxx.supabase.co"/>'
+   + '<label style="font-size:13px;color:#64748b">anon public key</label>'
+   + '<input id="cf-key" style="width:100%;padding:9px;margin:4px 0 14px;border:1px solid #cbd5e1;border-radius:8px"/>'
+   + '<button id="cf-save" style="padding:10px 16px;background:#0f766e;color:#fff;border:0;border-radius:9px;font-weight:600;cursor:pointer">Kaydet ve başlat</button></div>';
+  document.getElementById("cf-save").onclick = function(){
+    var u = document.getElementById("cf-url").value.trim().replace(/\/+$/,"");
+    var k = document.getElementById("cf-key").value.trim();
+    if (u.indexOf("https://") !== 0) { alert("Project URL https:// ile başlamalı."); return; }
+    if (k.length < 20) { alert("anon/publishable anahtarı eksik görünüyor."); return; }
+    localStorage.setItem("sb_url", u); localStorage.setItem("sb_key", k); location.reload();
+  };
+  throw new Error("config-needed");
+}
+const FN = (n) => SUPABASE_URL + "/functions/v1/" + n;
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const sevColor = (s) => s < .40 ? "#f43f5e" : s < .65 ? "#f59e0b" : "#10b981";
+const norm = (s) => String(s||"").toLocaleLowerCase("tr").replace(/ı/g,"i").replace(/ş/g,"s").replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ö/g,"o").replace(/ç/g,"c").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+let TOPICS = [], STUDENTS = [], EXAMS = [];
+const topicById = (id) => TOPICS.find(t => t.id === id);
+async function sha256(text){
+  const data = new TextEncoder().encode(text.trim().toLowerCase().replace(/\s+/g," "));
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function callFn(name, body){
+  const { data:{ session } } = await sb.auth.getSession();
+  const r = await fetch(FN(name), { method:"POST",
+    headers:{ "content-type":"application/json", "Authorization":"Bearer "+session.access_token, "apikey": SUPABASE_ANON_KEY },
+    body: JSON.stringify(body) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+
+/* ---- oturum ---- */
+$("lg-btn").onclick = async () => {
+  $("lg-err").textContent = "";
+  const { error } = await sb.auth.signInWithPassword({ email:$("lg-mail").value.trim(), password:$("lg-pass").value });
+  if (error) { $("lg-err").textContent = "Giriş başarısız: " + error.message; return; }
+  boot();
+};
+$("lg-pass").addEventListener("keydown", e => { if (e.key === "Enter") $("lg-btn").click(); });
+$("logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+sb.auth.getSession().then(({data}) => { if (data.session) boot(); });
+
+async function boot(){
+  const { data: prof, error } = await sb.rpc("get_my_profile");
+  if (error || prof?.role !== "yetkili") { $("lg-err").textContent = "Bu panel yetkili hesabı içindir."; await sb.auth.signOut(); return; }
+  $("p-login").classList.add("hide"); $("tabs").classList.remove("hide"); $("logout").classList.remove("hide");
+  showTab("ogr");
+  const t = await sb.from("topics").select("*").order("section").order("grp");
+  TOPICS = t.data || [];
+  fillTopicSelects();
+  seKonularCiz();
+  await Promise.all([loadStudents(), loadExams()]);
+  loadPool();
+}
+function showTab(k){
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x.dataset.t === k));
+  ["ogr","den","veri","tes","hav","set","kit"].forEach(p => $("p-"+p).classList.toggle("hide", p !== k));
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => showTab(t.dataset.t));
+
+/* ---- öğrenciler + bilgiler ---- */
+async function loadStudents(){
+  const { data } = await sb.from("students").select("*").order("name");
+  STUDENTS = data || [];
+  const tbl = $("og-tablo");
+  tbl.innerHTML = "<tr><th>Ad</th><th>Kod</th><th>Şifre</th><th>E-posta</th><th></th></tr>" +
+    (STUDENTS.length ? STUDENTS.map(s =>
+      "<tr><td>"+esc(s.name)+"</td><td>"+esc(s.kod||"—")+"</td><td>"+esc(s.initial_password||"—")+"</td>"+
+      "<td>"+esc(s.email||"")+" <a href='#' onclick='setMail(\""+s.id+"\");return false' style='font-size:11px'>düzenle</a></td>"+
+      "<td><button class='warn' style='padding:3px 8px;font-size:11px' onclick='delStudent(\""+s.id+"\")'>Sil</button></td></tr>"
+    ).join("") : "<tr><td colspan=5 class='muted'>Henüz öğrenci yok.</td></tr>");
+  const opts = '<option value="">Öğrenci seç…</option>' + STUDENTS.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join("");
+  ["vr-ogrenci","ts-ogrenci","kt-ogrenci","se-ogrenci"].forEach(id => { const el = $(id); if (el) el.innerHTML = opts; });
+}
+window.setMail = async (sid) => {
+  const s = STUDENTS.find(x=>x.id===sid);
+  const m = prompt("Öğrencinin gerçek e-postası (rapor göndermek için):", s?.email||"");
+  if (m === null) return;
+  await sb.from("students").update({ email: m.trim()||null }).eq("id", sid);
+  loadStudents();
+};
+window.delStudent = async (sid) => {
+  if (!confirm("Öğrenci ve tüm verileri silinsin mi?")) return;
+  await sb.from("students").delete().eq("id", sid);
+  loadStudents();
+};
+$("og-ekle").onclick = async () => {
+  $("og-msg").innerHTML = "";
+  const ad = $("og-ad").value.trim(), kod = $("og-kod").value.trim(), sifre = $("og-sifre").value, mail = $("og-mail").value.trim();
+  if (!ad || !kod || sifre.length < 6) { $("og-msg").innerHTML = '<div class="err">Ad, kod ve en az 6 karakter şifre gerekli.</div>'; return; }
+  try {
+    const r = await callFn("admin-create-student", { studentName: ad, kod, sifre, gercekEposta: mail });
+    $("og-msg").innerHTML = '<div class="ok">Hesap açıldı. Öğrenciye ver: <b>kod '+esc(r.kod)+'</b> / şifren.</div>';
+    $("og-ad").value = $("og-kod").value = $("og-sifre").value = $("og-mail").value = "";
+    loadStudents();
+  } catch(e){ $("og-msg").innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+};
+
+/* ---- denemeler ---- */
+async function loadExams(){
+  const { data } = await sb.from("exams").select("*").order("exam_date");
+  EXAMS = data || [];
+  $("dn-liste").innerHTML = EXAMS.length ? EXAMS.map(e =>
+    '<div class="li"><span style="flex:1">'+esc(e.name)+'</span><span class="chip">'+(e.exam_date||"")+'</span>'+
+    '<button class="ghost" style="padding:4px 8px;font-size:12px" onclick="editCounts(\''+e.id+'\')">Dağılım</button></div>').join("")
+    : "Henüz deneme yok.";
+  $("vr-deneme").innerHTML = '<option value="">Deneme seç…</option>' + EXAMS.map(e=>'<option value="'+e.id+'">'+esc(e.name)+'</option>').join("");
+}
+$("dn-ekle").onclick = async () => {
+  const ad = $("dn-ad").value.trim(); if (!ad) return;
+  const counts = Object.fromEntries(TOPICS.map(t => [t.id, t.default_count]));
+  await sb.from("exams").insert({ name: ad, exam_date: $("dn-tarih").value || null, counts });
+  $("dn-ad").value = ""; loadExams();
+};
+window.editCounts = (eid) => {
+  const e = EXAMS.find(x=>x.id===eid);
+  const yeni = prompt("Dağılım (konu_id: adet) JSON:", JSON.stringify(e.counts));
+  if (yeni == null) return;
+  try { const c = JSON.parse(yeni); sb.from("exams").update({counts:c}).eq("id",eid).then(loadExams); }
+  catch { alert("Geçersiz JSON."); }
+};
+
+/* ---- veri girişi + toplu yapıştır ---- */
+let VR = { rows: [] };
+["vr-deneme","vr-ogrenci"].forEach(id => $(id).onchange = drawEntry);
+async function drawEntry(){
+  const eid = $("vr-deneme").value, sid = $("vr-ogrenci").value;
+  $("vr-kaydet").disabled = !(eid && sid); $("vr-tablo").innerHTML = ""; $("vr-msg").textContent = "";
+  if (!eid || !sid) return;
+  const exam = EXAMS.find(e=>e.id===eid);
+  const { data: mevcut } = await sb.from("results").select("*").eq("exam_id",eid).eq("student_id",sid);
+  const eski = Object.fromEntries((mevcut||[]).map(r=>[r.topic_id,r]));
+  VR.rows = [];
+  let html = "";
+  for (const sec of ["TYT","AYT"]) {
+    const secT = TOPICS.filter(t=>t.section===sec && (exam.counts[t.id]??0) > 0);
+    if (!secT.length) continue;
+    html += '<div class="grp">'+sec+'</div><table><tr><th>Konu</th><th>Soru</th><th>Y</th><th>B</th></tr>';
+    for (const t of secT) {
+      const cnt = exam.counts[t.id]??0, o = eski[t.id];
+      VR.rows.push(t.id);
+      html += '<tr><td>'+esc(t.name)+'</td><td>'+cnt+'</td>'+
+        '<td><input type="number" min="0" id="vy-'+t.id+'" value="'+(o?o.wrong:"")+'"/></td>'+
+        '<td><input type="number" min="0" id="vb-'+t.id+'" value="'+(o?o.blank:"")+'"/></td></tr>';
+    }
+    html += '</table>';
+  }
+  $("vr-tablo").innerHTML = html;
+}
+
+/* ---- KARNE PDF -> otomatik doldur ---- */
+async function fileToB64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(",")[1]); r.onerror=rej; r.readAsDataURL(file); }); }
+document.getElementById("vr-pdf").addEventListener("change", async (ev) => {
+  const file = ev.target.files[0]; if (!file) return;
+  const eid = $("vr-deneme").value, sid = $("vr-ogrenci").value;
+  if (!eid || !sid) { $("vr-pdfmsg").innerHTML = '<span class="err">Önce deneme ve öğrenci seç.</span>'; return; }
+  $("vr-pdflabel").textContent = "Okunuyor…";
+  $("vr-pdfmsg").innerHTML = '<span class="muted">PDF yapay zekâ ile okunuyor, bekle…</span>';
+  try {
+    const b64 = await fileToB64(file);
+    const out = await callFn("ai-proxy", { action:"karne", pdfBase64:b64,
+      topicList: TOPICS.map(t=>({id:t.id,name:t.name,section:t.section})) });
+    const rows = out.results || [];
+    if (!rows.length) { $("vr-pdfmsg").innerHTML = '<span class="err">Karneden konu okunamadı. Konu bazlı kırılım içeren bir karne mi?</span>'; $("vr-pdflabel").textContent="PDF seç"; return; }
+    // tabloyu doldur (drawEntry tabloyu kurmuş olmalı)
+    let n = 0;
+    rows.forEach(r => { const t = topicById(r.id); if (!t) return;
+      const y = $("vy-"+r.id), b = $("vb-"+r.id);
+      if (y && b) { y.value = (+r.y||0); b.value = (+r.b||0); n++; } });
+    $("vr-pdfmsg").innerHTML = '<span class="ok">'+n+' konu dolduruldu. Kontrol et, sonra Kaydet\'e bas.</span>';
+    $("vr-pdflabel").textContent = "Başka PDF seç";
+    ev.target.value = "";
+  } catch(e){
+    const m = String(e.message||e);
+    $("vr-pdfmsg").innerHTML = '<span class="err">Okuma başarısız: '+esc(m)+'</span>' +
+      (m.includes("ANTHROPIC")||m.includes("credit") ? '<div class="muted">AI kapalı/bakiyesiz. Ücretsiz yol için aşağıdaki "Elle / belgeden giriş"i kullan.</div>' : '');
+    $("vr-pdflabel").textContent = "PDF seç";
+  }
+});
+
+$("vr-doldur").onclick = () => {
+  if (!VR.rows.length) { $("vr-bulkmsg").textContent = "Önce deneme + öğrenci seç."; return; }
+  const lines = $("vr-bulk").value.split("\n").map(l=>l.trim()).filter(Boolean);
+  let okN = 0; const bad = [];
+  for (const line of lines) {
+    const parts = line.split(/[;,\t]/).map(x=>x.trim()).filter(x=>x!=="");
+    if (parts.length < 3) { bad.push(line); continue; }
+    const b = parseInt(parts[parts.length-1]), y = parseInt(parts[parts.length-2]);
+    const key = norm(parts.slice(0, parts.length-2).join(" "));
+    if (isNaN(y) || isNaN(b) || !key) { bad.push(line); continue; }
+    const tid = VR.rows.find(id => { const n = norm(topicById(id).name); return n.includes(key) || key.includes(n); });
+    if (!tid) { bad.push(line); continue; }
+    $("vy-"+tid).value = y; $("vb-"+tid).value = b; okN++;
+  }
+  $("vr-bulkmsg").textContent = okN + " satır dolduruldu." + (bad.length ? " Eşleşmeyen: " + bad.join(" | ") : "");
+};
+$("vr-kaydet").onclick = async () => {
+  const eid = $("vr-deneme").value, sid = $("vr-ogrenci").value;
+  const exam = EXAMS.find(e=>e.id===eid);
+  const rows = VR.rows.map(tid => ({ student_id:sid, exam_id:eid, topic_id:tid,
+    count: exam.counts[tid]??0,
+    wrong: Math.max(0, parseInt($("vy-"+tid).value||"0")||0),
+    blank: Math.max(0, parseInt($("vb-"+tid).value||"0")||0) }));
+  const bad = rows.find(r => r.wrong + r.blank > r.count);
+  if (bad) { $("vr-msg").innerHTML = '<span class="err">'+esc(topicById(bad.topic_id).name)+': Y+B soru sayısını aşıyor.</span>'; return; }
+  const { error } = await sb.from("results").upsert(rows, { onConflict: "student_id,exam_id,topic_id" });
+  $("vr-msg").innerHTML = error ? '<span class="err">'+esc(error.message)+'</span>' : '<span class="ok">Kaydedildi ('+rows.length+' konu ölçüldü).</span>';
+};
+
+/* ---- teşhis + rapor ---- */
+$("ts-ogrenci").onchange = drawDiag;
+
+/* ===== Teşhis çekirdeği: konu bazlı toplam + deneme bazlı seyir ===== */
+async function fetchAgg(sid){
+  const { data } = await sb.from("results").select("topic_id,count,wrong,blank,correct").eq("student_id",sid).gt("count",0);
+  const m = {};
+  (data||[]).forEach(r => { const a = m[r.topic_id] = m[r.topic_id] || {C:0,D:0,Y:0,B:0};
+    a.C+=r.count; a.D+=r.correct; a.Y+=r.wrong; a.B+=r.blank; });
+  return Object.entries(m).map(([tid,a]) => ({ t: topicById(tid), ...a, s: a.D/a.C,
+    yR: a.Y/a.C, bR: a.B/a.C })).filter(x=>x.t);
+}
+/* Deneme bazlı: her deneme için TYT/AYT net + konu başarısı (trend için) */
+async function fetchByExam(sid){
+  const { data } = await sb.from("results").select("exam_id,topic_id,count,wrong,blank,correct").eq("student_id",sid).gt("count",0);
+  const byExam = {};
+  (data||[]).forEach(r => {
+    const t = topicById(r.topic_id); if (!t) return;
+    const e = byExam[r.exam_id] = byExam[r.exam_id] || { TYT:{D:0,Y:0,B:0,C:0}, AYT:{D:0,Y:0,B:0,C:0}, konu:{} };
+    const k = e[t.section]; k.D+=r.correct; k.Y+=r.wrong; k.B+=r.blank; k.C+=r.count;
+    e.konu[r.topic_id] = { D:r.correct, C:r.count };
+  });
+  return EXAMS.filter(x=>byExam[x.id]).map(x => {
+    const e = byExam[x.id];
+    const net = (o) => o.C ? +(o.D - o.Y/4).toFixed(2) : null;
+    return { exam:x, tytNet:net(e.TYT), aytNet:net(e.AYT),
+             tytC:e.TYT.C, aytC:e.AYT.C, konu:e.konu,
+             basari: (e.TYT.C+e.AYT.C) ? (e.TYT.D+e.AYT.D)/(e.TYT.C+e.AYT.C) : null };
+  }).sort((a,b)=>(a.exam.exam_date||"").localeCompare(b.exam.exam_date||""));
+}
+/* Sınıf ortalaması (konu bazlı) — karşılaştırma için */
+async function fetchClassAvg(){
+  const { data } = await sb.from("results").select("topic_id,count,correct").gt("count",0);
+  const m = {};
+  (data||[]).forEach(r => { const a = m[r.topic_id] = m[r.topic_id] || {C:0,D:0};
+    a.C+=r.count; a.D+=r.correct; });
+  const out = {}; Object.entries(m).forEach(([tid,a]) => out[tid] = a.C ? a.D/a.C : null);
+  return out;
+}
+/* Hata profili: yanlış baskın = kavram yanılgısı, boş baskın = eksik/zaman */
+function hataProfili(x){
+  if (x.yR >= 0.30 && x.yR > x.bR) return { ad:"Kavram yanılgısı", renk:"#e11d48", oneri:"Yapıyor ama hatalı: tanım/kural tekrarı + hata analizi" };
+  if (x.bR >= 0.30 && x.bR > x.yR) return { ad:"Konu eksiği / zaman", renk:"#f59e0b", oneri:"Girmiyor: temel anlatım + bol temel soru, süre çalışması" };
+  if (x.s >= 0.80) return { ad:"Sağlam", renk:"#10b981", oneri:"Koruma: seyrek pekiştirme, zor soru" };
+  return { ad:"Karma", renk:"#64748b", oneri:"Hem kavram hem hız: orta düzey karışık set" };
+}
+function trendOf(seri){
+  const v = seri.filter(x=>x.basari!=null).map(x=>x.basari);
+  if (v.length < 2) return { yon:"—", fark:0, renk:"#94a3b8", ad:"Yetersiz veri" };
+  const ilk = v.slice(0, Math.max(1,Math.floor(v.length/2)));
+  const son = v.slice(Math.floor(v.length/2));
+  const ort = a => a.reduce((x,y)=>x+y,0)/a.length;
+  const fark = ort(son) - ort(ilk);
+  if (fark >= 0.05) return { yon:"▲", fark, renk:"#10b981", ad:"Yükseliyor" };
+  if (fark <= -0.05) return { yon:"▼", fark, renk:"#e11d48", ad:"Geriliyor" };
+  return { yon:"■", fark, renk:"#64748b", ad:"Yatay" };
+}
+/* Tutarlılık: denemeler arası başarı standart sapması */
+function tutarlilik(seri){
+  const v = seri.filter(x=>x.basari!=null).map(x=>x.basari);
+  if (v.length < 2) return null;
+  const ort = v.reduce((a,b)=>a+b,0)/v.length;
+  const sd = Math.sqrt(v.reduce((a,b)=>a+(b-ort)**2,0)/v.length);
+  return { sd, ad: sd < 0.07 ? "İstikrarlı" : sd < 0.15 ? "Dalgalı" : "Çok değişken" };
+}
+
+let TS = { sid:null, agg:[], seri:[], sinif:{} };
+
+async function drawDiag(){
+  const sid = $("ts-ogrenci").value;
+  TS.sid = sid;
+  $("ts-raporkart").classList.toggle("hide", !sid);
+  $("ts-yazdir").disabled = !sid;
+  $("ts-rapor").classList.add("hide"); $("ts-raporbtn").classList.add("hide");
+  if (!sid) { $("ts-govde").innerHTML = '<div class="card muted">Değerlendirme için öğrenci seç.</div>'; return; }
+  $("ts-govde").innerHTML = '<div class="card muted">Değerlendirme hazırlanıyor…</div>';
+  const [agg, seri, sinif] = await Promise.all([fetchAgg(sid), fetchByExam(sid), fetchClassAvg()]);
+  TS.agg = agg; TS.seri = seri; TS.sinif = sinif;
+  if (!agg.length) { $("ts-govde").innerHTML = '<div class="card muted">Bu öğrenci için ölçülmüş veri yok. Veri Girişi sekmesinden deneme sonucu ekle.</div>'; return; }
+
+  const st = STUDENTS.find(x=>x.id===sid);
+  const tr = trendOf(seri), tut = tutarlilik(seri);
+  const sonTyt = [...seri].reverse().find(x=>x.tytNet!=null);
+  const sonAyt = [...seri].reverse().find(x=>x.aytNet!=null);
+  const ortTyt = seri.filter(x=>x.tytNet!=null);
+  const ortAyt = seri.filter(x=>x.aytNet!=null);
+  const ort = a => a.length ? (a.reduce((x,y)=>x+y,0)/a.length) : null;
+  const tytOrt = ort(ortTyt.map(x=>x.tytNet)), aytOrt = ort(ortAyt.map(x=>x.aytNet));
+  const genel = agg.reduce((a,x)=>a+x.D,0) / agg.reduce((a,x)=>a+x.C,0);
+
+  /* --- 1. ÖZET --- */
+  let html = '<div class="card"><h1 style="font-size:16px;margin-bottom:2px">'+esc(st?.name||"")+' — Değerlendirme Raporu</h1>'+
+    '<div class="muted" style="margin-bottom:10px">'+seri.length+' deneme · '+agg.length+' ölçülmüş konu · '+new Date().toLocaleDateString("tr-TR")+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">'+
+      kutu("TYT net (ort.)", tytOrt!=null?tytOrt.toFixed(1):"—", sonTyt?("son: "+sonTyt.tytNet):"") +
+      kutu("AYT net (ort.)", aytOrt!=null?aytOrt.toFixed(1):"—", sonAyt?("son: "+sonAyt.aytNet):"") +
+      kutu("Genel başarı", "%"+Math.round(genel*100), sevAd(genel), sevColor(genel)) +
+      kutu("Gidişat", tr.yon+" "+tr.ad, (tr.fark?((tr.fark>0?"+":"")+Math.round(tr.fark*100)+" puan"):""), tr.renk) +
+      (tut ? kutu("Tutarlılık", tut.ad, "sapma ±"+Math.round(tut.sd*100), tut.sd<0.07?"#10b981":tut.sd<0.15?"#f59e0b":"#e11d48") : "") +
+    '</div></div>';
+
+  /* --- 2. DENEME SEYRİ --- */
+  if (seri.length) {
+    html += '<div class="card"><h1 style="font-size:15px">Deneme seyri</h1><div style="overflow-x:auto"><table><tr><th>Deneme</th><th>Tarih</th><th>TYT net</th><th>AYT net</th><th>Başarı</th></tr>'+
+      seri.map(x => '<tr><td>'+esc(x.exam.name)+'</td><td class="muted">'+(x.exam.exam_date||"")+'</td>'+
+        '<td>'+(x.tytNet!=null?x.tytNet:"—")+'</td><td>'+(x.aytNet!=null?x.aytNet:"—")+'</td>'+
+        '<td style="color:'+sevColor(x.basari)+';font-weight:700">%'+Math.round(x.basari*100)+'</td></tr>').join("")+
+      '</table></div></div>';
+  }
+
+  /* --- 3. HATA PROFİLİ ÖZETİ --- */
+  const kav = agg.filter(x=>hataProfili(x).ad==="Kavram yanılgısı");
+  const eks = agg.filter(x=>hataProfili(x).ad==="Konu eksiği / zaman");
+  const sag = agg.filter(x=>x.s>=0.80);
+  html += '<div class="card"><h1 style="font-size:15px">Hata profili</h1>'+
+    '<p class="muted">Yanlış baskın konular <b>kavram yanılgısına</b>, boş baskın konular <b>konu eksiğine/zaman sorununa</b> işaret eder. Müdahale türü buna göre değişir.</p>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">'+
+      kutu("Kavram yanılgısı", kav.length+" konu", kav.slice(0,3).map(x=>x.t.name).join(", "), "#e11d48") +
+      kutu("Konu eksiği / zaman", eks.length+" konu", eks.slice(0,3).map(x=>x.t.name).join(", "), "#f59e0b") +
+      kutu("Sağlam", sag.length+" konu", sag.slice(0,3).map(x=>x.t.name).join(", "), "#10b981") +
+    '</div></div>';
+
+  /* --- 4. ÖNCELİKLİ MÜDAHALE PLANI --- */
+  const plan = agg.filter(x=>x.s<0.65)
+    .map(x => ({ ...x, oncelik: (x.t.default_count||0.5) * (1-x.s) }))
+    .sort((a,b)=>b.oncelik-a.oncelik);
+  if (plan.length) {
+    html += '<div class="card"><h1 style="font-size:15px">Öncelikli müdahale planı</h1>'+
+      '<p class="muted">Sıralama = <b>sınavdaki soru payı × mevcut eksik</b>. Yukarıdan başlamak en yüksek net kazancını verir.</p>'+
+      '<div style="overflow-x:auto"><table><tr><th>#</th><th>Konu</th><th>Başarı</th><th>D/Y/B</th><th>Tanı</th><th>Önerilen müdahale</th><th>Sınıf ort.</th></tr>'+
+      plan.map((x,i) => { const hp = hataProfili(x); const so = TS.sinif[x.t.id];
+        return '<tr><td><b>'+(i+1)+'</b></td><td>'+esc(x.t.name)+' <span class="muted">'+x.t.section+'</span></td>'+
+        '<td style="color:'+sevColor(x.s)+';font-weight:700">%'+Math.round(x.s*100)+'</td>'+
+        '<td class="muted">'+x.D+'/'+x.Y+'/'+x.B+'</td>'+
+        '<td style="color:'+hp.renk+'">'+hp.ad+'</td><td class="muted">'+hp.oneri+'</td>'+
+        '<td class="muted">'+(so!=null?("%"+Math.round(so*100)+(x.s<so-0.1?" ↓":x.s>so+0.1?" ↑":"")):"—")+'</td></tr>'; }).join("")+
+      '</table></div></div>';
+  } else html += '<div class="card"><h1 style="font-size:15px">Öncelikli müdahale planı</h1><p class="ok">Eşik altı (%65) konu yok — pekiştirme ve hız çalışmasına geçilebilir.</p></div>';
+
+  /* --- 5. KONU HARİTASI --- */
+  html += '<div class="card"><h1 style="font-size:15px">Konu haritası</h1>';
+  for (const sec of ["TYT","AYT"]) {
+    const list = agg.filter(x=>x.t.section===sec).sort((a,b)=>(a.t.grp||"").localeCompare(b.t.grp||"")||a.s-b.s);
+    if (!list.length) continue;
+    html += '<h2 style="font-size:13px;margin:10px 0 2px">'+sec+'</h2>';
+    let grp = null;
+    for (const x of list) {
+      if (x.t.grp !== grp) { grp = x.t.grp; html += '<div class="grp">'+esc(grp)+'</div>'; }
+      const hp = hataProfili(x); const so = TS.sinif[x.t.id];
+      html += '<div class="li"><span style="flex:1">'+esc(x.t.name)+'</span>'+
+        '<span class="chip" style="color:'+hp.renk+'">'+hp.ad+'</span>'+
+        '<span class="chip">D'+x.D+' Y'+x.Y+' B'+x.B+'</span>'+
+        (so!=null?'<span class="chip muted">sınıf %'+Math.round(so*100)+'</span>':"")+
+        '<div class="bar"><span style="width:'+Math.round(x.s*100)+'%;background:'+sevColor(x.s)+'"></span></div>'+
+        '<span class="pct" style="color:'+sevColor(x.s)+'">%'+Math.round(x.s*100)+'</span></div>';
+    }
+  }
+  html += '</div>';
+  $("ts-govde").innerHTML = html;
+}
+function kutu(baslik, deger, alt, renk){
+  return '<div style="border:1px solid var(--bd);border-radius:10px;padding:10px">'+
+    '<div class="muted" style="font-size:11px">'+esc(baslik)+'</div>'+
+    '<div style="font-size:19px;font-weight:700;color:'+(renk||"#0f172a")+'">'+esc(String(deger))+'</div>'+
+    (alt?'<div class="muted" style="font-size:11px">'+esc(String(alt))+'</div>':"")+'</div>';
+}
+function sevAd(s){ return s<0.40?"Kritik":s<0.65?"Gelişmeli":s<0.80?"İyi":"Çok iyi"; }
+
+$("ts-yazdir").onclick = () => {
+  const st = STUDENTS.find(x=>x.id===TS.sid);
+  const w = window.open("", "_blank");
+  if (!w) { alert("Pop-up iznini aç."); return; }
+  w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Değerlendirme Raporu</title><style>'+
+    'body{font-family:Segoe UI,Arial;color:#0f172a;padding:24px;line-height:1.45;font-size:13px}'+
+    'h1{font-size:17px}h2{font-size:13px;color:#0f766e;margin:12px 0 4px}'+
+    'table{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0}'+
+    'td,th{padding:4px 6px;border-bottom:1px solid #e2e8f0;text-align:left}'+
+    '.card{margin-bottom:14px;page-break-inside:avoid}.muted{color:#64748b}.grp{color:#0f766e;font-weight:700;font-size:11px;margin-top:6px}'+
+    '.li{display:flex;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid #f1f5f9}'+
+    '.chip{font-size:10px;background:#f1f5f9;padding:1px 6px;border-radius:9px}'+
+    '.bar{flex:0 0 90px;height:7px;background:#eef2f6;border-radius:9px;overflow:hidden}.bar>span{display:block;height:100%}'+
+    '.pct{width:42px;text-align:right;font-weight:700}.ok{color:#059669}'+
+    '</style></head><body>'+$("ts-govde").innerHTML+
+    '<script>window.onload=function(){window.print()}<\/script></body></html>');
+  w.document.close();
+};
+
+$("ts-raporolustur").onclick = async () => {
+  const sid = TS.sid; if (!sid) return;
+  const st = STUDENTS.find(s=>s.id===sid);
+  const agg = TS.agg, seri = TS.seri;
+  if (!agg.length) { alert("Rapor için veri yok."); return; }
+  const tr = trendOf(seri), tut = tutarlilik(seri);
+  const genel = agg.reduce((a,x)=>a+x.D,0) / agg.reduce((a,x)=>a+x.C,0);
+  const ort = a => a.length ? (a.reduce((x,y)=>x+y,0)/a.length) : null;
+  const tytOrt = ort(seri.filter(x=>x.tytNet!=null).map(x=>x.tytNet));
+  const aytOrt = ort(seri.filter(x=>x.aytNet!=null).map(x=>x.aytNet));
+  const plan = agg.filter(x=>x.s<0.65).map(x=>({...x, o:(x.t.default_count||0.5)*(1-x.s)})).sort((a,b)=>b.o-a.o);
+  const guclu = agg.filter(x=>x.s>=0.80).sort((a,b)=>b.s-a.s).slice(0,5);
+
+  let r = "MATEMATİK DEĞERLENDİRME RAPORU\n";
+  r += "═".repeat(42) + "\n";
+  r += "Öğrenci : " + (st?.name||"") + "\n";
+  r += "Tarih   : " + new Date().toLocaleDateString("tr-TR") + "\n";
+  r += "Kapsam  : " + seri.length + " deneme, " + agg.length + " ölçülmüş konu\n\n";
+
+  r += "1) GENEL DURUM\n";
+  if (tytOrt!=null) r += "   • TYT ortalama net : " + tytOrt.toFixed(1) + "\n";
+  if (aytOrt!=null) r += "   • AYT ortalama net : " + aytOrt.toFixed(1) + "\n";
+  r += "   • Genel başarı     : %" + Math.round(genel*100) + " (" + sevAd(genel) + ")\n";
+  r += "   • Gidişat          : " + tr.ad + (tr.fark ? " (" + (tr.fark>0?"+":"") + Math.round(tr.fark*100) + " puan)" : "") + "\n";
+  if (tut) r += "   • Tutarlılık       : " + tut.ad + " (denemeler arası sapma ±" + Math.round(tut.sd*100) + " puan)\n";
+  r += "\n";
+
+  if (guclu.length) {
+    r += "2) GÜÇLÜ KONULAR\n";
+    guclu.forEach(x => r += "   • " + x.t.name + " (%" + Math.round(x.s*100) + ")\n");
+    r += "\n";
+  }
+
+  if (plan.length) {
+    r += "3) ÖNCELİKLİ ÇALIŞMA PLANI\n";
+    r += "   (Sıralama: sınavdaki soru payı × mevcut eksik)\n";
+    plan.slice(0,8).forEach((x,i) => {
+      const hp = hataProfili(x);
+      r += "   " + (i+1) + ". " + x.t.name + " [" + x.t.section + "] — %" + Math.round(x.s*100) +
+           " | D:" + x.D + " Y:" + x.Y + " B:" + x.B + "\n";
+      r += "      Tanı  : " + hp.ad + "\n";
+      r += "      Öneri : " + hp.oneri + "\n";
+    });
+    r += "\n";
+  } else r += "3) ÖNCELİKLİ ÇALIŞMA PLANI\n   Eşik altı konu kalmadı; pekiştirme ve hız dönemine geçilebilir.\n\n";
+
+  r += "4) DEĞERLENDİRME VE YÖNTEM\n";
+  const kavN = agg.filter(x=>hataProfili(x).ad==="Kavram yanılgısı").length;
+  const eksN = agg.filter(x=>hataProfili(x).ad==="Konu eksiği / zaman").length;
+  if (kavN > eksN && kavN)      r += "   Hata profili ağırlıklı olarak KAVRAM YANILGISI yönünde: öğrenci soruya giriyor\n   ancak hatalı sonuçlanıyor. Öncelik, yeni konu değil; tanım-kural tekrarı ve\n   yapılan hataların analizidir.\n";
+  else if (eksN > kavN && eksN) r += "   Hata profili ağırlıklı olarak KONU EKSİĞİ / ZAMAN yönünde: öğrenci soruya\n   girmiyor. Öncelik temel anlatım, bol temel düzey soru ve süre çalışmasıdır.\n";
+  else                          r += "   Hata profili karma görünüyor: hem kavram tekrarı hem hız çalışması birlikte\n   yürütülmelidir.\n";
+  r += "\n   Bu rapor, deneme sonuçlarının konu bazlı çözümlenmesiyle üretilmiştir.\n";
+  r += "   İlke: önce doğru teşhis, sonra profile uygun müdahale.\n\n";
+  r += "Öğretmen: ______________________\n";
+
+  $("ts-rapor").value = r;
+  $("ts-rapor").classList.remove("hide"); $("ts-raporbtn").classList.remove("hide");
+  $("ts-raporMsg").textContent = st?.email ? "" : "Not: öğrencinin e-postası kayıtlı değil (Öğrenciler sekmesinden ekle).";
+};
+$("ts-mail").onclick = () => {
+  const st = STUDENTS.find(s=>s.id===TS.sid);
+  if (!st?.email) { alert("Önce Öğrenciler sekmesinden e-posta ekle."); return; }
+  location.href = "mailto:" + encodeURIComponent(st.email) +
+    "?subject=" + encodeURIComponent("Matematik Değerlendirme Raporu — " + st.name) +
+    "&body=" + encodeURIComponent($("ts-rapor").value);
+};
+$("ts-kopyala").onclick = async () => {
+  await navigator.clipboard.writeText($("ts-rapor").value);
+  $("ts-raporMsg").textContent = "Kopyalandı.";
+};
+
+
+/* ---- havuz ---- */
+function fillTopicSelects(){
+  const opt = TOPICS.map(t=>'<option value="'+t.id+'">'+esc(t.section)+' · '+esc(t.name)+'</option>').join("");
+  $("hv-konu").innerHTML = opt; $("ha-konu").innerHTML = opt; $("gr-konu").innerHTML = opt;
+  $("hv-suz").innerHTML = '<option value="">tümü</option>' + opt;
+}
+$("ha-ekle").onclick = async () => {
+  $("ha-msg").innerHTML = "";
+  const stem = $("ha-soru").value.trim();
+  const opts = {}; ["A","B","C","D","E"].forEach(L => { const v = $("ha-"+L).value.trim(); if (v) opts[L] = v; });
+  if (!stem || Object.keys(opts).length < 4) { $("ha-msg").innerHTML = '<div class="err">Soru metni ve en az 4 şık gerekli.</div>'; return; }
+  const { error } = await sb.from("questions").upsert([{
+    topic_id: $("ha-konu").value, difficulty: $("ha-zorluk").value, qtype: $("ha-cesit").value || null,
+    stem, options: opts, correct: $("ha-dogru").value, solution: $("ha-cozum").value.trim() || null,
+    status: "dogrulandi", source: "ogretmen", content_hash: await sha256(stem)
+  }], { onConflict: "content_hash", ignoreDuplicates: true });
+  $("ha-msg").innerHTML = error ? '<div class="err">'+esc(error.message)+'</div>' : '<div class="ok">Havuza eklendi (doğrulandı olarak — kendi yazdığın için).</div>';
+  ["ha-soru","ha-A","ha-B","ha-C","ha-D","ha-E","ha-cozum"].forEach(id=>$(id).value="");
+  loadPool();
+};
+
+/* ---- Görselli (grafik) soru: fotoğraf yükle, seviyeyi elle belirle ---- */
+let grFile = null;
+document.getElementById("gr-file").addEventListener("change", (ev) => {
+  const fl = ev.target.files[0]; if (!fl) return;
+  grFile = fl;
+  $("gr-filelabel").textContent = "Fotoğraf seçildi ✓";
+  $("gr-preview").innerHTML = '<img src="'+URL.createObjectURL(fl)+'" style="max-width:100%;max-height:320px;border:1px solid #e2e8f0;border-radius:10px;margin:6px 0" />';
+  $("gr-ekle").disabled = false;
+});
+async function uploadImage(file){
+  const ext = (((file.name||"").split(".").pop())||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"") || "jpg";
+  const path = "q_"+Date.now()+"_"+Math.random().toString(36).slice(2,7)+"."+ext;
+  const up = await sb.storage.from("soru-gorselleri").upload(path, file, { contentType: file.type || "image/jpeg", upsert:false });
+  if (up.error) throw up.error;
+  return sb.storage.from("soru-gorselleri").getPublicUrl(path).data.publicUrl;
+}
+$("gr-ekle").onclick = async () => {
+  if (!grFile) { $("gr-msg").innerHTML = '<div class="err">Önce fotoğraf seç.</div>'; return; }
+  $("gr-ekle").disabled = true; $("gr-msg").innerHTML = '<span class="muted">Yükleniyor…</span>';
+  try {
+    const url = await uploadImage(grFile);
+    const { error } = await sb.from("questions").insert([{
+      topic_id: $("gr-konu").value, difficulty: $("gr-zorluk").value, qtype: $("gr-cesit").value || null,
+      has_figure: true, image_url: url, stem: "", options: {}, correct: $("gr-dogru").value,
+      solution: $("gr-cozum").value.trim() || null, status: "dogrulandi", source: "ogretmen",
+      content_hash: await sha256(url)
+    }]);
+    if (error) throw error;
+    $("gr-msg").innerHTML = '<div class="ok">Görselli soru havuza eklendi (onaylı).</div>';
+    grFile = null; $("gr-file").value = ""; $("gr-filelabel").textContent = "Soru fotoğrafı seç";
+    $("gr-preview").innerHTML = ""; $("gr-cozum").value = "";
+    loadPool();
+  } catch(e){ $("gr-msg").innerHTML = '<div class="err">'+esc(e.message||e)+'</div>'; $("gr-ekle").disabled = false; }
+};
+
+/* ---- PDF/fotoğraftan soru çıkarma (AI) ---- */
+async function extractFromFile(file){
+  const b64 = await fileToB64(file);
+  const isPdf = (file.type === "application/pdf") || /\.pdf$/i.test(file.name||"");
+  const payload = { action:"extract_pool", topicList: TOPICS.map(t=>({id:t.id,name:t.name,section:t.section})) };
+  if (isPdf) payload.pdfBase64 = b64; else { payload.imageBase64 = b64; payload.mediaType = file.type || "image/jpeg"; }
+  const out = await callFn("ai-proxy", payload);
+  return out.sorular || [];
+}
+function aiHint(m){
+  return (m.indexOf("anahtar")>-1||m.indexOf("ANTHROPIC")>-1||m.indexOf("GEMINI")>-1||m.indexOf("credit")>-1)
+    ? '<div class="muted">İpucu: Supabase Secrets kısmına <b>GEMINI_API_KEY</b> (ücretsiz, aistudio.google.com/apikey) ekleyip ai-proxy fonksiyonunu güncel kodla yeniden deploy et.</div>' : "";
+}
+document.getElementById("ha-file").addEventListener("change", async (ev) => {
+  const file = ev.target.files[0]; if (!file) return;
+  $("ha-filemsg").textContent = "Okunuyor…";
+  try {
+    const qs = await extractFromFile(file);
+    if (!qs.length) { $("ha-filemsg").innerHTML = '<span class="err">Soru bulunamadı.</span>'; ev.target.value=""; return; }
+    const q = qs[0];
+    if (topicById(q.topic_id)) $("ha-konu").value = q.topic_id;
+    if (q.difficulty) $("ha-zorluk").value = q.difficulty;
+    if (q.qtype) $("ha-cesit").value = q.qtype;
+    $("ha-soru").value = q.soru || "";
+    ["A","B","C","D","E"].forEach(L => { $("ha-"+L).value = (q.secenekler && q.secenekler[L]) || ""; });
+    if (q.dogru) $("ha-dogru").value = q.dogru;
+    $("ha-cozum").value = q.cozum || "";
+    $("ha-filemsg").innerHTML = '<span class="ok">Form dolduruldu — kontrol et, sonra "Havuza ekle".</span>' +
+      (qs.length > 1 ? ' <span class="muted">(Dosyada '+qs.length+' soru var; hepsi için toplu kutuyu kullan.)</span>' : "");
+  } catch(e){ const m = String(e.message||e); $("ha-filemsg").innerHTML = '<span class="err">'+esc(m)+'</span>' + aiHint(m); }
+  ev.target.value = "";
+});
+document.getElementById("hv-pdfq").addEventListener("change", async (ev) => {
+  const file = ev.target.files[0]; if (!file) return;
+  $("hv-pdfqlabel").textContent = "Okunuyor…";
+  $("hv-pdfqmsg").innerHTML = '<span class="muted">Sorular çıkarılıyor, bekle…</span>';
+  try {
+    const qs = await extractFromFile(file);
+    const rows = [];
+    for (const q of qs) {
+      const t = topicById(q.topic_id); if (!t || !q.soru || !q.secenekler || !q.dogru) continue;
+      rows.push({ topic_id:q.topic_id, difficulty:q.difficulty||"orta", qtype:q.qtype||null,
+        has_figure: !!q.has_figure, stem:q.soru, options:q.secenekler, correct:q.dogru,
+        solution:q.cozum||null, status:"taslak", source:"cikmis", content_hash: await sha256(q.soru) });
+    }
+    if (!rows.length) { $("hv-pdfqmsg").innerHTML = '<span class="err">Geçerli soru çıkarılamadı. Belge net mi?</span>'; }
+    else {
+      const { error } = await sb.from("questions").upsert(rows, { onConflict:"content_hash", ignoreDuplicates:true });
+      $("hv-pdfqmsg").innerHTML = error ? '<span class="err">'+esc(error.message)+'</span>'
+        : '<span class="ok">'+rows.length+' soru taslak olarak alındı — aşağıdan tek tek onayla.</span>';
+      loadPool();
+    }
+  } catch(e){ const m = String(e.message||e); $("hv-pdfqmsg").innerHTML = '<span class="err">'+esc(m)+'</span>' + aiHint(m); }
+  $("hv-pdfqlabel").textContent = "PDF / fotoğraf seç";
+  ev.target.value = "";
+});
+
+$("im-btn").onclick = async () => {
+  $("im-msg").textContent = "";
+  let arr;
+  try { const j = JSON.parse($("im-json").value.replace(/```json|```/g,"").trim()); arr = Array.isArray(j) ? j : (j.sorular||[]); }
+  catch { $("im-msg").innerHTML = '<span class="err">Geçersiz JSON.</span>'; return; }
+  const rows = [];
+  for (const q of arr) {
+    const t = topicById(q.topic_id); if (!t || !q.soru || !q.secenekler || !q.dogru) continue;
+    rows.push({ topic_id: q.topic_id, difficulty: q.difficulty||"orta", qtype: q.qtype||null,
+      stem: q.soru, options: q.secenekler, correct: q.dogru, solution: q.cozum||null,
+      status: "taslak", source: "uretildi", content_hash: await sha256(q.soru) });
+  }
+  if (!rows.length) { $("im-msg").innerHTML = '<span class="err">İçe aktarılacak geçerli soru bulunamadı (topic_id doğru mu?).</span>'; return; }
+  const { error } = await sb.from("questions").upsert(rows, { onConflict: "content_hash", ignoreDuplicates: true });
+  $("im-msg").innerHTML = error ? '<span class="err">'+esc(error.message)+'</span>' : '<span class="ok">'+rows.length+' soru taslak olarak alındı — aşağıdan onayla.</span>';
+  $("im-json").value = ""; loadPool();
+};
+$("hv-uret").onclick = async () => {
+  const t = topicById($("hv-konu").value); if (!t) return;
+  $("hv-uretmsg").innerHTML = '<span class="muted">Üretiliyor…</span>'; $("hv-uret").disabled = true;
+  try {
+    let qtypes = null;
+    const cov = await sb.from("v_pool_coverage").select("*").eq("section",t.section).eq("grp",t.grp).gt("acik",0);
+    if (cov.data?.length) qtypes = cov.data.map(c=>c.qtype);
+    const out = await callFn("ai-proxy", { action:"generate", topicName:t.name, section:t.section,
+      difficulty:$("hv-zorluk").value, n:+$("hv-adet").value, qtypes });
+    const rows = [];
+    for (const q of (out.sorular||[])) {
+      rows.push({ topic_id:t.id, difficulty:$("hv-zorluk").value, qtype:q.cesit||null,
+        has_figure: !!q.has_figure, stem:q.soru, options:q.secenekler, correct:q.dogru,
+        solution:q.cozum||null, status:"taslak", source:"uretildi", content_hash: await sha256(q.soru) });
+    }
+    const { error } = await sb.from("questions").upsert(rows, { onConflict:"content_hash", ignoreDuplicates:true });
+    $("hv-uretmsg").innerHTML = error ? '<div class="err">'+esc(error.message)+'</div>'
+      : '<div class="ok">'+rows.length+' soru taslak eklendi — aşağıdan onayla.</div>';
+    loadPool();
+  } catch(e){
+    const m = String(e.message||e);
+    $("hv-uretmsg").innerHTML = '<div class="err">'+esc(m)+'</div>' +
+      (m.includes("ANTHROPIC") || m.includes("credit") ?
+        '<div class="muted">AI kapalı/bakiyesiz olabilir. Ücretsiz yol: soruları Claude sohbetinde ürettir, "İçe aktar" ile al.</div>' : '');
+  }
+  $("hv-uret").disabled = false;
+};
+["hv-durum","hv-suz"].forEach(id => $(id).onchange = loadPool);
+async function loadPool(){
+  let q = sb.from("questions").select("*").order("created_at",{ascending:false}).limit(300);
+  if ($("hv-durum").value) q = q.eq("status", $("hv-durum").value);
+  if ($("hv-suz").value) q = q.eq("topic_id", $("hv-suz").value);
+  const { data } = await q;
+  const list = data || [];
+  const c = document.getElementById("hv-sayi"); if (c) c.textContent = list.length + " soru listeleniyor";
+  $("hv-liste").innerHTML = list.length ? list.map(x => {
+    const t = topicById(x.topic_id);
+    const opts = ["A","B","C","D","E"].map(L => x.options?.[L]!=null?'<div><b>'+L+')</b> '+esc(x.options[L])+'</div>':"").join("");
+    const st = x.status==="dogrulandi"?"ok":x.status==="taslak"?"tas":"red";
+    const img = x.image_url ? '<img src="'+esc(x.image_url)+'" style="max-width:100%;max-height:260px;border:1px solid #e2e8f0;border-radius:8px;margin:4px 0" />' : "";
+    return '<div class="qbox">'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px">'+
+      '<span class="chip">'+esc(t?.name||x.topic_id)+'</span><span class="chip">'+esc(x.difficulty)+'</span>'+
+      (x.qtype?'<span class="chip">'+esc(x.qtype)+'</span>':"")+(x.image_url?'<span class="chip">görselli</span>':"")+'<span class="chip '+st+'">'+esc(x.status)+'</span></div>'+
+      img+(x.stem?'<div style="white-space:pre-wrap">'+esc(x.stem)+'</div>':"")+'<div class="opts">'+opts+'</div>'+
+      '<div class="muted" style="margin-top:5px">Cevap: <b>'+esc(x.correct)+'</b>'+(x.solution?' — '+esc(x.solution):"")+'</div>'+
+      '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+
+        (x.status!=="dogrulandi"?'<button style="padding:5px 10px;font-size:12px" onclick="setStatus(\''+x.id+'\',\'dogrulandi\')">✓ Onayla</button>':"")+
+        (x.status!=="reddedildi"?'<button class="ghost" style="padding:5px 10px;font-size:12px" onclick="setStatus(\''+x.id+'\',\'reddedildi\')">Reddet</button>':"")+
+        '<button class="warn" style="padding:5px 10px;font-size:12px" onclick="delQuestion(\''+x.id+'\')">🗑 Sil</button>'+
+      '</div>'+
+      '</div>';
+  }).join("") : "Bu süzgeçte soru yok.";
+}
+window.delQuestion = async (id) => {
+  if (!confirm("Bu soru havuzdan KALICI olarak silinsin mi?")) return;
+  const { error } = await sb.from("questions").delete().eq("id", id);
+  if (error) alert("Silinemedi: " + error.message);
+  loadPool();
+};
+window.setStatus = async (id, status) => {
+  const { data:{ user } } = await sb.auth.getUser();
+  await sb.from("questions").update({ status, verified_by:user.id, verified_at:new Date().toISOString() }).eq("id",id);
+  loadPool();
+};
+$("hv-pdf").onclick = async () => {
+  const cevapli = $("hv-pdfcevap").checked;
+  let q = sb.from("questions").select("*").eq("status","dogrulandi").limit(500);
+  if ($("hv-suz").value) q = q.eq("topic_id", $("hv-suz").value);
+  const { data } = await q;
+  if (!(data||[]).length) { alert("Doğrulanmış soru yok."); return; }
+  const byTopic = {};
+  data.forEach(x => (byTopic[x.topic_id] = byTopic[x.topic_id] || []).push(x));
+  let n = 0, body = "";
+  for (const t of TOPICS) {
+    const qs = byTopic[t.id]; if (!qs) continue;
+    body += '<h2>'+esc(t.section)+' · '+esc(t.name)+'</h2>';
+    qs.forEach(x => { n++;
+      const opts = ["A","B","C","D","E"].map(L => x.options?.[L]!=null?'<div class="opt"><b>'+L+')</b> '+esc(x.options[L])+'</div>':"").join("");
+      const img = x.image_url ? '<img class="qimg" src="'+esc(x.image_url)+'" />' : "";
+      body += '<div class="q"><div class="qh">'+n+'.</div><div>'+(x.stem?'<div>'+esc(x.stem)+'</div>':"")+img+'<div class="opts">'+opts+'</div>'+
+        (cevapli?'<div class="ans">Cevap: <b>'+esc(x.correct)+'</b>'+(x.solution?' — '+esc(x.solution):"")+'</div>':"")+'</div></div>';
+    });
+  }
+  const w = window.open("", "_blank");
+  if (!w) { alert("Pop-up iznini aç."); return; }
+  w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Soru Havuzu</title><style>'+
+   'body{font-family:Segoe UI,Arial;color:#0f172a;padding:28px;line-height:1.5}h1{font-size:19px;border-bottom:2px solid #0f766e;padding-bottom:5px}'+
+   'h2{font-size:14px;color:#0f766e;border-left:3px solid #0f766e;padding-left:8px;margin:16px 0 6px}'+
+   '.q{display:flex;gap:8px;margin:9px 0;page-break-inside:avoid}.qh{font-weight:bold;min-width:22px}'+
+   '.opts{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:4px;font-size:14px}.ans{color:#065f46;font-size:13px;margin-top:4px}'+
+   '.qimg{max-width:96%;max-height:340px;display:block;margin:6px 0;border-radius:6px}@media print{.qimg{max-height:300px}}'+
+   '</style></head><body><h1>Konu Bazlı Soru Listesi'+(cevapli?' (Cevaplı — Öğretmen)':'')+'</h1>'+body+
+   '<script>window.onload=function(){setTimeout(function(){window.print()},600)}<\/script></body></html>');
+  w.document.close();
+};
+
+/* ================= SORU SETİ PDF ================= */
+let SE = { son: null };
+function seKonularCiz(){
+  let html = "";
+  for (const sec of ["TYT","AYT"]) {
+    const list = TOPICS.filter(t=>t.section===sec);
+    let grp = null;
+    html += '<div class="grp" style="margin-top:6px">'+sec+'</div>';
+    for (const t of list) {
+      if (t.grp !== grp) { grp = t.grp; html += '<div style="font-size:11px;color:#94a3b8;margin:6px 0 2px">'+esc(grp)+'</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 10px">'; }
+      html += '<label style="font-size:13px;display:flex;align-items:center;gap:6px;padding:2px 0"><input type="checkbox" class="se-k" value="'+t.id+'" style="width:auto"> '+esc(t.name)+'</label>';
+    }
+    html += '</div>';
+  }
+  $("se-konular").innerHTML = html;
+  document.querySelectorAll(".se-k").forEach(c => c.onchange = seSayac);
+  seSayac();
+}
+function seSayac(){
+  const n = document.querySelectorAll(".se-k:checked").length;
+  $("se-secim").textContent = n ? n+" konu seçili" : "konu seçilmedi";
+}
+window.seSec = async (mod) => {
+  const boxes = [...document.querySelectorAll(".se-k")];
+  if (mod === "temizle") boxes.forEach(b=>b.checked=false);
+  else if (mod === "tyt") boxes.forEach(b=>{ const t=topicById(b.value); b.checked = t && t.section==="TYT"; });
+  else if (mod === "ayt") boxes.forEach(b=>{ const t=topicById(b.value); b.checked = t && t.section==="AYT"; });
+  else if (mod === "zayif") {
+    const sid = $("se-ogrenci").value;
+    if (!sid) { alert("Önce öğrenci seç."); return; }
+    const agg = await fetchAgg(sid);
+    const zayif = new Set(agg.filter(x=>x.s<.65).map(x=>x.t.id));
+    if (!zayif.size) { alert("Bu öğrencide eşik altı konu yok ya da veri girilmemiş."); return; }
+    boxes.forEach(b => b.checked = zayif.has(b.value));
+  }
+  seSayac();
+};
+$("se-uret").onclick = async () => {
+  const tids = [...document.querySelectorAll(".se-k:checked")].map(c=>c.value);
+  const zorluklar = [...document.querySelectorAll(".se-z:checked")].map(c=>c.value);
+  const perT = +$("se-adet").value, sid = $("se-ogrenci").value;
+  $("se-msg").innerHTML = ""; $("se-ata").disabled = true;
+  if (!tids.length) { $("se-msg").innerHTML = '<div class="err">En az bir konu seç.</div>'; return; }
+  if (!zorluklar.length) { $("se-msg").innerHTML = '<div class="err">En az bir zorluk seç.</div>'; return; }
+  $("se-uret").disabled = true; $("se-msg").innerHTML = '<span class="muted">Havuzdan seçiliyor…</span>';
+  try {
+    let usedSet = new Set();
+    if (sid && !$("se-tekrar").checked) {
+      const { data: used } = await sb.from("question_usage").select("question_id").eq("student_id", sid);
+      usedSet = new Set((used||[]).map(u=>u.question_id));
+    }
+    const secilen = [], eksik = [];
+    for (const tid of tids) {
+      const t = topicById(tid);
+      const { data: qs } = await sb.from("questions").select("*")
+        .eq("topic_id", tid).eq("status","dogrulandi").in("difficulty", zorluklar).limit(50);
+      const havuz = (qs||[]).filter(q => !usedSet.has(q.id));
+      for (let i = havuz.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [havuz[i],havuz[j]]=[havuz[j],havuz[i]]; }
+      const alinan = havuz.slice(0, perT);
+      if (alinan.length < perT) eksik.push(t.name+" ("+alinan.length+"/"+perT+")");
+      alinan.forEach(q => secilen.push({ t, q }));
+    }
+    if (!secilen.length) { $("se-msg").innerHTML = '<div class="err">Seçilen konu+zorlukta havuzda onaylı soru yok. Havuz sekmesinden ekleyip onayla.</div>'; $("se-uret").disabled=false; return; }
+    if ($("se-sira").value === "karisik") for (let i=secilen.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [secilen[i],secilen[j]]=[secilen[j],secilen[i]]; }
+    SE.son = { secilen, sid };
+    $("se-ata").disabled = !sid;
+    $("se-msg").innerHTML = '<div class="ok">'+secilen.length+' soru seçildi. PDF penceresi açılıyor.</div>' +
+      (eksik.length ? '<div class="muted">Havuz yetersiz: '+esc(eksik.join(", "))+'</div>' : "");
+    sePdf(secilen, sid);
+  } catch(e){ $("se-msg").innerHTML = '<div class="err">'+esc(e.message||e)+'</div>'; }
+  $("se-uret").disabled = false;
+};
+function sePdf(secilen, sid){
+  const cevapli = $("se-cevapli").checked;
+  const st = STUDENTS.find(x=>x.id===sid);
+  const bugun = new Date().toLocaleDateString("tr-TR");
+  const grupla = $("se-sira").value === "konu";
+  let body = "", n = 0, sonGrp = null;
+  for (const x of secilen) {
+    if (grupla && x.t.id !== sonGrp) { sonGrp = x.t.id; body += '<h2>'+esc(x.t.section)+' · '+esc(x.t.name)+'</h2>'; }
+    n++;
+    const q = x.q;
+    const opts = ["A","B","C","D","E"].map(L => q.options?.[L]!=null?'<div class="opt"><b>'+L+')</b> '+esc(q.options[L])+'</div>':"").join("");
+    const img = q.image_url ? '<img class="qimg" src="'+esc(q.image_url)+'" />' : "";
+    body += '<div class="q"><div class="qh">'+n+'.</div><div>'+(q.stem?'<div>'+esc(q.stem)+'</div>':"")+img+'<div class="opts">'+opts+'</div></div></div>';
+  }
+  let anahtar = "";
+  if (cevapli) {
+    let i = 0;
+    anahtar = '<div class="pagebreak"></div><h1>Cevap Anahtarı</h1><div class="key">' +
+      secilen.map(x => { i++; return '<span><b>'+i+'.</b> '+esc(x.q.correct)+'</span>'; }).join("") + '</div>' +
+      '<h2 style="margin-top:14px">Çözümler</h2>' +
+      secilen.map((x,j) => x.q.solution ? '<div class="sol"><b>'+(j+1)+'.</b> '+esc(x.q.solution)+'</div>' : "").join("");
+  }
+  const w = window.open("", "_blank");
+  if (!w) { alert("Pop-up iznini aç."); return; }
+  w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Soru Seti</title><style>'+
+   'body{font-family:Segoe UI,Arial;color:#0f172a;padding:26px;line-height:1.5}'+
+   '.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0f766e;padding-bottom:6px;margin-bottom:10px}'+
+   'h1{font-size:19px;margin:0}.sub{font-size:12px;color:#64748b;text-align:right}'+
+   'h2{font-size:14px;color:#0f766e;border-left:3px solid #0f766e;padding-left:8px;margin:16px 0 6px}'+
+   '.q{display:flex;gap:8px;margin:10px 0;page-break-inside:avoid}.qh{font-weight:bold;min-width:24px}'+
+   '.opts{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:4px;font-size:14px}'+
+   '.qimg{max-width:96%;max-height:340px;display:block;margin:6px 0;border-radius:6px}'+
+   '.key{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;font-size:14px}'+
+   '.sol{font-size:13px;color:#475569;margin:4px 0;page-break-inside:avoid}'+
+   '.pagebreak{page-break-before:always}@media print{body{padding:14px}.qimg{max-height:300px}}'+
+   '</style></head><body>'+
+   '<div class="hd"><h1>Soru Seti</h1><div class="sub">'+(st?'<b>'+esc(st.name)+'</b><br>':'')+bugun+'<br>'+n+' soru</div></div>'+
+   body+anahtar+'<script>window.onload=function(){setTimeout(function(){window.print()},600)}<\/script></body></html>');
+  w.document.close();
+}
+$("se-ata").onclick = async () => {
+  if (!SE.son || !SE.son.sid) return;
+  const { secilen, sid } = SE.son;
+  $("se-ata").disabled = true;
+  try {
+    const { data: bk, error: bErr } = await sb.from("booklets")
+      .insert({ student_id: sid, title: "Soru Seti — " + new Date().toLocaleDateString("tr-TR") }).select().single();
+    if (bErr) throw bErr;
+    const items = secilen.map((x,i)=>({ booklet_id:bk.id, question_id:x.q.id, topic_id:x.q.topic_id,
+      qtype:x.q.qtype, difficulty:x.q.difficulty, stem:x.q.stem, options:x.q.options,
+      correct:x.q.correct, solution:x.q.solution, image_url:x.q.image_url, ord:i }));
+    const { error: iErr } = await sb.from("booklet_items").insert(items);
+    if (iErr) throw iErr;
+    await sb.from("question_usage").upsert(secilen.map(x=>({ question_id:x.q.id, student_id:sid, context:bk.id })),
+      { onConflict:"question_id,student_id", ignoreDuplicates:true });
+    $("se-msg").innerHTML = '<div class="ok">Öğrenciye atandı — portalında görünecek ('+items.length+' soru).</div>';
+  } catch(e){ $("se-msg").innerHTML = '<div class="err">'+esc(e.message||e)+'</div>'; $("se-ata").disabled = false; }
+};
+
+/* ---- kitapçık ---- */
+let KT = { zayif: [] };
+$("kt-ogrenci").onchange = async () => {
+  const sid = $("kt-ogrenci").value; $("kt-zayif").textContent = ""; $("kt-olustur").disabled = true;
+  if (!sid) return;
+  const agg = await fetchAgg(sid);
+  KT.zayif = agg.filter(x=>x.s<.65).sort((a,b)=>((b.t.default_count||.5)*(1-b.s))-((a.t.default_count||.5)*(1-a.s)));
+  $("kt-zayif").innerHTML = KT.zayif.length
+    ? "Zayıf konular: " + KT.zayif.map(x=>'<span class="chip">'+esc(x.t.name)+' %'+Math.round(x.s*100)+'</span>').join(" ")
+    : "Zayıf konu yok ya da veri girilmemiş.";
+  $("kt-olustur").disabled = !KT.zayif.length;
+};
+$("kt-olustur").onclick = async () => {
+  const sid = $("kt-ogrenci").value, perT = +$("kt-adet").value;
+  $("kt-msg").innerHTML = '<span class="muted">Havuzdan seçiliyor…</span>'; $("kt-olustur").disabled = true;
+  try {
+    const { data: used } = await sb.from("question_usage").select("question_id").eq("student_id",sid);
+    const usedSet = new Set((used||[]).map(u=>u.question_id));
+    const secilen = [], eksik = [];
+    for (const w of KT.zayif) {
+      const diff = w.s < .40 ? ["temel","kolay"] : ["orta"];
+      const { data: qs } = await sb.from("questions").select("*")
+        .eq("topic_id", w.t.id).eq("status","dogrulandi").in("difficulty",diff).limit(20);
+      const uygun = (qs||[]).filter(q=>!usedSet.has(q.id)).slice(0, perT);
+      if (uygun.length < perT) eksik.push(w.t.name+" ("+uygun.length+"/"+perT+")");
+      uygun.forEach(q => secilen.push({ q }));
+    }
+    if (!secilen.length) { $("kt-msg").innerHTML = '<div class="err">Havuzda uygun doğrulanmış soru yok. Önce Havuz sekmesinden ekle/onayla.'+(eksik.length?"<br>Eksik: "+esc(eksik.join(", ")):"")+'</div>'; $("kt-olustur").disabled=false; return; }
+    const { data: bk, error: bErr } = await sb.from("booklets")
+      .insert({ student_id:sid, title:"Tekrar Kitapçığı — " + new Date().toLocaleDateString("tr-TR") }).select().single();
+    if (bErr) throw bErr;
+    const items = secilen.map((x,i)=>({ booklet_id:bk.id, question_id:x.q.id, topic_id:x.q.topic_id,
+      qtype:x.q.qtype, difficulty:x.q.difficulty, stem:x.q.stem, options:x.q.options, correct:x.q.correct, solution:x.q.solution, image_url:x.q.image_url, ord:i }));
+    await sb.from("booklet_items").insert(items);
+    await sb.from("question_usage").upsert(secilen.map(x=>({ question_id:x.q.id, student_id:sid, context:bk.id })),
+      { onConflict:"question_id,student_id", ignoreDuplicates:true });
+    const st = STUDENTS.find(s=>s.id===sid);
+    $("kt-msg").innerHTML = '<div class="ok">Kitapçık atandı: '+items.length+' soru. Öğrenci portalında görünür.'+
+      (eksik.length?'<br><span class="err">Havuz yetersiz kalan konular: '+esc(eksik.join(", "))+'</span>':"")+'</div>';
+    $("kt-onizleme").innerHTML = '<div class="card"><div class="no-print" style="text-align:right"><button class="ghost" onclick="window.print()">Yazdır / PDF</button></div>'+
+      '<h1 style="font-size:16px">Tekrar Kitapçığı — '+esc(st?.name||"")+'</h1>'+
+      items.map((it,i)=>{ const opts = ["A","B","C","D","E"].map(L=>it.options?.[L]!=null?'<div><b>'+L+')</b> '+esc(it.options[L])+'</div>':"").join("");
+        const img = it.image_url ? '<img src="'+esc(it.image_url)+'" style="max-width:100%;max-height:300px;border-radius:8px;margin:4px 0" />' : "";
+        return '<div class="qbox"><div style="white-space:pre-wrap"><b>'+(i+1)+'.</b> '+esc(it.stem)+'</div>'+img+'<div class="opts">'+opts+'</div>'+
+          '<div class="muted no-print" style="margin-top:4px">Cevap: <b>'+esc(it.correct)+'</b>'+(it.solution?' — '+esc(it.solution):"")+'</div></div>'; }).join("")+'</div>';
+  } catch(e){ $("kt-msg").innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+  $("kt-olustur").disabled = false;
+};
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
