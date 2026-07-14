@@ -165,6 +165,98 @@
     </div>
   </div>
 
+  <!-- HAVUZ -->
+  <div id="p-hav" class="hide">
+    <div class="card" style="border:2px solid #99c9c2">
+      <h1 style="font-size:16px;color:#0f766e">➊ Soru ekle (en kolay yol — ücretsiz)</h1>
+      <p class="muted">Soruyu yaz, şıkları doldur, doğru cevabı seç, <b>Havuza ekle</b>. Kendi eklediğin sorular doğrudan onaylı sayılır.</p>
+      <div class="row">
+        <div><label>Konu</label><select id="ha-konu"></select></div>
+        <div><label>Zorluk</label><select id="ha-zorluk"><option>temel</option><option>kolay</option><option selected>orta</option><option>zor</option></select></div>
+        <div><label>Çeşit (ops.)</label><select id="ha-cesit"><option value="">—</option><option>islem</option><option>kavram</option><option>sozel</option><option>grafik</option><option>muhakeme</option><option>coklu</option></select></div>
+      </div>
+      <div style="margin:6px 0 2px">
+        <label style="display:inline-block;background:#eef6f5;color:#0f766e;padding:8px 12px;border-radius:9px;font-weight:600;cursor:pointer;font-size:13px;border:1px solid #c7e5e1">
+          📷 Fotoğraf/PDF'ten doldur (AI)
+          <input type="file" id="ha-file" accept="image/*,application/pdf" style="display:none" />
+        </label>
+        <span id="ha-filemsg" class="muted" style="margin-left:8px"></span>
+      </div>
+      <label>Soru metni</label><textarea id="ha-soru" rows="3" placeholder="Sorunun tam metnini yaz…"></textarea>
+      <div class="row">
+        <div><label>A şıkkı</label><input id="ha-A" /></div><div><label>B şıkkı</label><input id="ha-B" /></div>
+        <div><label>C şıkkı</label><input id="ha-C" /></div><div><label>D şıkkı</label><input id="ha-D" /></div><div><label>E şıkkı</label><input id="ha-E" /></div>
+      </div>
+      <div class="row">
+        <div><label>Doğru cevap</label><select id="ha-dogru"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
+        <div style="flex:3"><label>Çözüm (kısa, ops.)</label><input id="ha-cozum" /></div>
+        <div style="flex:0"><button id="ha-ekle" style="padding:11px 20px">Havuza ekle</button></div>
+      </div>
+      <div id="ha-msg"></div>
+    </div>
+
+    <div class="card" style="border:2px solid #f0b8b8">
+      <h1 style="font-size:16px;color:#b45309">➋ Görselli soru ekle (grafik / şekilli)</h1>
+      <p class="muted">Grafik, şekil veya tablo içeren sorular için: sorunun (şıklarıyla birlikte) net bir <b>fotoğrafını</b> yükle, konu/zorluk/cevabı <b>sen belirle</b>. Resim havuzda, kitapçıkta ve öğrenci portalında görünür.</p>
+      <div class="row">
+        <div><label>Konu</label><select id="gr-konu"></select></div>
+        <div><label>Zorluk</label><select id="gr-zorluk"><option>temel</option><option>kolay</option><option selected>orta</option><option>zor</option></select></div>
+        <div><label>Çeşit</label><select id="gr-cesit"><option value="grafik" selected>grafik</option><option value="">—</option><option>islem</option><option>kavram</option><option>sozel</option><option>muhakeme</option><option>coklu</option></select></div>
+        <div><label>Doğru cevap</label><select id="gr-dogru"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
+      </div>
+      <div style="margin:8px 0">
+        <label style="display:inline-block;background:#0f766e;color:#fff;padding:9px 14px;border-radius:9px;font-weight:600;cursor:pointer">
+          <span id="gr-filelabel">Soru fotoğrafı seç</span>
+          <input type="file" id="gr-file" accept="image/*" style="display:none" />
+        </label>
+        <span id="gr-filemsg" class="muted" style="margin-left:8px"></span>
+      </div>
+      <div id="gr-preview"></div>
+      <label>Çözüm (kısa, ops.)</label><input id="gr-cozum" />
+      <div style="margin-top:8px"><button id="gr-ekle" style="padding:11px 20px" disabled>Havuza ekle</button></div>
+      <div id="gr-msg"></div>
+    </div>
+
+    <div class="card">
+      <h1 style="font-size:15px">PDF / fotoğraftan toplu soru al (AI)</h1>
+      <p class="muted">İçinde birden çok soru olan bir PDF veya fotoğraf yükle; sorular çıkarılır, konu/zorluk/çeşide otomatik sınıflanır ve <b>taslak</b> olarak havuza girer. Cevap anahtarı yoksa AI çözer — <b>onaydan geçirmeden öğrenciye çıkarma.</b></p>
+      <label style="display:inline-block;background:#0f766e;color:#fff;padding:9px 14px;border-radius:9px;font-weight:600;cursor:pointer;font-size:14px">
+        <span id="hv-pdfqlabel">PDF / fotoğraf seç</span>
+        <input type="file" id="hv-pdfq" accept="image/*,application/pdf" style="display:none" />
+      </label>
+      <div id="hv-pdfqmsg" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <details><summary>Gelişmiş: JSON ile toplu içe aktar / AI ile üret</summary>
+        <p class="muted" style="margin-top:8px">Claude'dan aldığın JSON'u yapıştır:</p>
+        <textarea id="im-json" rows="4" placeholder='[{"topic_id":"ayt_turev","difficulty":"orta","soru":"...","secenekler":{"A":"...","B":"...","C":"...","D":"...","E":"..."},"dogru":"C","cozum":"..."}]'></textarea>
+        <div style="margin-top:6px"><button id="im-btn">İçe aktar</button> <span id="im-msg"></span></div>
+        <hr style="border:0;border-top:1px solid var(--bd);margin:14px 0">
+        <p class="muted">AI ile otomatik üret (API anahtarı gerekir):</p>
+        <div class="row">
+          <div><label>Konu</label><select id="hv-konu"></select></div>
+          <div><label>Zorluk</label><select id="hv-zorluk"><option value="temel">temel</option><option value="kolay">kolay</option><option value="orta" selected>orta</option><option value="zor">zor</option></select></div>
+          <div><label>Adet</label><select id="hv-adet"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></div>
+          <div style="flex:0"><button id="hv-uret">Üret → taslak</button></div>
+        </div>
+        <div id="hv-uretmsg"></div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h1 style="font-size:15px">Havuzdaki sorular</h1>
+      <div class="row">
+        <div><label>Durum</label><select id="hv-durum"><option value="">hepsi</option><option value="dogrulandi">onaylı (öğrenciye çıkabilir)</option><option value="taslak">taslak (onay bekleyen)</option><option value="reddedildi">reddedilen</option></select></div>
+        <div><label>Konu süz</label><select id="hv-suz"><option value="">tümü</option></select></div>
+        <div style="flex:0"><button class="ghost" id="hv-pdf">PDF yazdır</button></div>
+        <div style="flex:0"><label style="margin:0"><input type="checkbox" id="hv-pdfcevap" style="width:auto"/> cevaplı</label></div>
+      </div>
+      <div style="margin-top:6px"><span id="hv-sayi" class="muted"></span></div>
+      <div id="hv-liste" class="muted" style="margin-top:8px">Yükleniyor…</div>
+    </div>
+  </div>
+
   <!-- SORU SETİ PDF -->
   <div id="p-set" class="hide">
     <div class="card">
