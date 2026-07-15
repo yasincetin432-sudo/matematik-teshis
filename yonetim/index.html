@@ -112,6 +112,7 @@
       <div class="row">
         <div><label>Ad</label><input id="dn-ad" placeholder="ör. 3D TYT-1" /></div>
         <div><label>Tarih</label><input id="dn-tarih" type="date" /></div>
+        <div><label>Tür</label><select id="dn-tur"><option value="TYT">TYT Matematik</option><option value="AYT">AYT Matematik</option><option value="TYT+AYT" selected>TYT + AYT (genel deneme)</option><option value="sinif">Sınıf yazılısı / konu denemesi</option></select></div>
         <div style="flex:0"><button id="dn-ekle">Ekle</button></div>
       </div>
     </div>
@@ -126,11 +127,11 @@
         <div><label>Öğrenci</label><select id="vr-ogrenci"></select></div>
       </div>
 
-      <!-- ASIL YOL: PDF YÜKLE -->
-      <div id="vr-pdfbox" style="margin-top:12px;border:2px dashed #99c9c2;border-radius:12px;padding:20px;text-align:center;background:#f0fbf9">
-        <div style="font-size:15px;font-weight:600;color:#0f766e">Karneyi yükle — PDF veya fotoğraf</div>
-        <div class="muted" style="margin:4px 0 12px">Konu bazlı deneme karnesini seç; sistem okuyup tabloyu doldursun.<br>Karne birden çok sayfaysa <b>tüm fotoğrafları birden seçebilirsin</b> (Ctrl ile çoklu seçim).</div>
-        <label style="display:inline-block;background:#0f766e;color:#fff;padding:10px 18px;border-radius:9px;font-weight:600;cursor:pointer">
+      <!-- KARNE PDF / FOTOĞRAF -->
+      <div id="vr-pdfbox" style="margin-top:12px;border:2px dashed #99c9c2;border-radius:12px;padding:16px;text-align:center;background:#f0fbf9">
+        <div style="font-size:15px;font-weight:600;color:#0f766e">Karneyi yükle — PDF veya fotoğraf (AI ile okur)</div>
+        <div class="muted" style="margin:4px 0 10px">Çok sayfalıysa tüm fotoğrafları birden seçebilirsin. Okuma sonrası tabloyu kontrol et.</div>
+        <label style="display:inline-block;background:#0f766e;color:#fff;padding:9px 16px;border-radius:9px;font-weight:600;cursor:pointer">
           <span id="vr-pdflabel">PDF / fotoğraf seç</span>
           <input type="file" id="vr-pdf" accept="image/*,application/pdf" multiple style="display:none" />
         </label>
@@ -138,12 +139,13 @@
         <div id="vr-pdfmsg" style="margin-top:8px"></div>
       </div>
 
-      <details style="margin-top:12px"><summary>Elle / belgeden giriş (ücretsiz, AI'sız)</summary>
-        <p class="muted" style="margin-top:8px">Her satıra: <b>Konu adı ; Yanlış ; Boş</b> — örn. <code>Türev ; 3 ; 1</code>.</p>
-        <textarea id="vr-bulk" rows="4" placeholder="Türev ; 3 ; 1&#10;Limit ; 1 ; 2"></textarea>
-        <div style="margin-top:6px"><button class="ghost" id="vr-doldur">Doldur</button> <span id="vr-bulkmsg" class="muted"></span></div>
-      </details>
-
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <b style="font-size:14px">Konu bazlı giriş</b>
+        <span class="muted" style="font-size:12px">Her konuya <b>Doğru / Yanlış / Boş</b> yaz. Dokunmadığın konu "ölçülmedi" sayılır, ortalamayı bozmaz.</span>
+        <label style="margin:0;font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="checkbox" id="vr-hepsi" style="width:auto"> Tüm konuları göster
+        </label>
+      </div>
       <div id="vr-tablo" style="margin-top:12px"></div>
       <div class="no-print" style="margin-top:10px"><button id="vr-kaydet" disabled>Kaydet</button> <span id="vr-msg"></span></div>
     </div>
@@ -318,6 +320,10 @@
         <div><label>Öğrenci (ops. — başlıkta yazar / atama için)</label><select id="se-ogrenci"></select></div>
         <div><label>Konu başına soru</label><select id="se-adet"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option><option>12</option><option>15</option><option>20</option></select></div>
         <div><label>Sıralama</label><select id="se-sira"><option value="konu">Konuya göre grupla</option><option value="karisik">Karışık</option></select></div>
+        <div><label>Düzen</label><select id="se-duzen"><option value="2" selected>2 sütun (ÖSYM tarzı)</option><option value="1">Tek sütun</option></select></div>
+      </div>
+      <div class="row" style="margin-top:4px">
+        <div style="flex:2"><label>PDF başlığı (boş bırakırsan otomatik yazılır)</label><input id="se-baslik" placeholder="ör. AYT Matematik — Trigonometri" /></div>
       </div>
       <div class="row" style="margin-top:4px">
         <div><label>Zorluk (birden çok seçilebilir)</label>
@@ -503,19 +509,22 @@ $("og-ekle").onclick = async () => {
 };
 
 /* ---- denemeler ---- */
+function turAd(t){ return t==="TYT"?"TYT":t==="AYT"?"AYT":t==="sinif"?"Sınıf yazılısı":"TYT+AYT"; }
 async function loadExams(){
   const { data } = await sb.from("exams").select("*").order("exam_date");
   EXAMS = data || [];
   $("dn-liste").innerHTML = EXAMS.length ? EXAMS.map(e =>
-    '<div class="li"><span style="flex:1">'+esc(e.name)+'</span><span class="chip">'+(e.exam_date||"")+'</span>'+
+    '<div class="li"><span style="flex:1">'+esc(e.name)+'</span>'+'<span class="chip" style="background:'+(e.tur==="TYT"?"#d1fae5;color:#065f46":e.tur==="AYT"?"#fef3c7;color:#92400e":e.tur==="sinif"?"#ede9fe;color:#5b21b6":"#e0f2fe;color:#075985")+'">'+esc(turAd(e.tur))+'</span>'+'<span class="chip">'+(e.exam_date||"")+'</span>'+
     '<button class="ghost" style="padding:4px 8px;font-size:12px" onclick="editCounts(\''+e.id+'\')">Dağılım</button>'+'<button class="warn" style="padding:4px 8px;font-size:12px" onclick="delExam(\''+e.id+'\',\''+esc(e.name).replace(/'/g,"\\'")+'\')">Sil</button></div>').join("")
     : "Henüz deneme yok.";
   $("vr-deneme").innerHTML = '<option value="">Deneme seç…</option>' + EXAMS.map(e=>'<option value="'+e.id+'">'+esc(e.name)+'</option>').join("");
 }
 $("dn-ekle").onclick = async () => {
   const ad = $("dn-ad").value.trim(); if (!ad) return;
+  const tur = $("dn-tur").value;
   const counts = Object.fromEntries(TOPICS.map(t => [t.id, t.default_count]));
-  await sb.from("exams").insert({ name: ad, exam_date: $("dn-tarih").value || null, counts });
+  const { error } = await sb.from("exams").insert({ name: ad, exam_date: $("dn-tarih").value || null, counts, tur });
+  if (error) { alert("Eklenemedi: " + error.message + "\n\n(guncelleme-4.sql çalıştırıldı mı?)"); return; }
   $("dn-ad").value = ""; loadExams();
 };
 window.delExam = async (eid, ad) => {
@@ -538,27 +547,43 @@ let VR = { rows: [] };
 async function drawEntry(){
   const eid = $("vr-deneme").value, sid = $("vr-ogrenci").value;
   $("vr-kaydet").disabled = !(eid && sid); $("vr-tablo").innerHTML = ""; $("vr-msg").textContent = "";
+  const pb = document.getElementById("vr-pdfbox"); if (pb) pb.style.display = (eid && sid) ? "block" : "none";
   if (!eid || !sid) return;
   const exam = EXAMS.find(e=>e.id===eid);
   const { data: mevcut } = await sb.from("results").select("*").eq("exam_id",eid).eq("student_id",sid);
   const eski = Object.fromEntries((mevcut||[]).map(r=>[r.topic_id,r]));
+  const hepsi = $("vr-hepsi").checked;
+  const tur = exam.tur || "TYT+AYT";
+  const bolumler = tur === "TYT" ? ["TYT"] : tur === "AYT" ? ["AYT"] : ["TYT","AYT"];
   VR.rows = [];
   let html = "";
-  for (const sec of ["TYT","AYT"]) {
-    const secT = TOPICS.filter(t=>t.section===sec && (exam.counts[t.id]??0) > 0);
+  for (const sec of bolumler) {
+    const secT = TOPICS.filter(t => t.section === sec &&
+      (hepsi || tur === "sinif" || (exam.counts && (exam.counts[t.id] ?? 0) > 0) || eski[t.id]));
     if (!secT.length) continue;
-    html += '<div class="grp">'+sec+'</div><table><tr><th>Konu</th><th>Soru</th><th>Y</th><th>B</th></tr>';
+    html += '<div class="grp" style="margin-top:10px">'+sec+' MATEMATİK</div>';
+    html += '<div style="overflow-x:auto"><table><tr><th style="width:45%">Konu</th><th>Doğru</th><th>Yanlış</th><th>Boş</th><th class="muted">Toplam</th></tr>';
+    let grp = null;
     for (const t of secT) {
-      const cnt = exam.counts[t.id]??0, o = eski[t.id];
+      if (t.grp !== grp) { grp = t.grp; html += '<tr><td colspan="5" style="background:#f8fafc;font-size:11px;color:#0f766e;font-weight:700;padding:4px 6px">'+esc(grp)+'</td></tr>'; }
+      const o = eski[t.id];
       VR.rows.push(t.id);
-      html += '<tr><td>'+esc(t.name)+'</td><td>'+cnt+'</td>'+
-        '<td><input type="number" min="0" id="vy-'+t.id+'" value="'+(o?o.wrong:"")+'"/></td>'+
-        '<td><input type="number" min="0" id="vb-'+t.id+'" value="'+(o?o.blank:"")+'"/></td></tr>';
+      html += '<tr><td>'+esc(t.name)+'</td>'+
+        '<td><input type="number" min="0" id="vd-'+t.id+'" value="'+(o?o.correct:"")+'" oninput="vrTop(\''+t.id+'\')" style="border-color:#a7f3d0"/></td>'+
+        '<td><input type="number" min="0" id="vy-'+t.id+'" value="'+(o?o.wrong:"")+'" oninput="vrTop(\''+t.id+'\')" style="border-color:#fecdd3"/></td>'+
+        '<td><input type="number" min="0" id="vb-'+t.id+'" value="'+(o?o.blank:"")+'" oninput="vrTop(\''+t.id+'\')" style="border-color:#e2e8f0"/></td>'+
+        '<td class="muted" id="vt-'+t.id+'" style="font-weight:700">'+(o?o.count:"")+'</td></tr>';
     }
-    html += '</table>';
+    html += '</table></div>';
   }
-  $("vr-tablo").innerHTML = html;
+  $("vr-tablo").innerHTML = html || '<p class="muted">Bu deneme türünde gösterilecek konu yok. "Tüm konuları göster"i işaretle.</p>';
 }
+window.vrTop = (tid) => {
+  const g = (p) => Math.max(0, parseInt(($(p+tid).value)||"0")||0);
+  const t = g("vd-") + g("vy-") + g("vb-");
+  const el = $("vt-"+tid); if (el) { el.textContent = t || ""; el.style.color = t ? "#0f172a" : "#94a3b8"; }
+};
+$("vr-hepsi").onchange = drawEntry;
 
 /* ---- KARNE PDF -> otomatik doldur ---- */
 async function fileToB64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(",")[1]); r.onerror=rej; r.readAsDataURL(file); }); }
@@ -588,11 +613,11 @@ document.getElementById("vr-pdf").addEventListener("change", async (ev) => {
     if (!rows.length) { $("vr-pdfmsg").innerHTML = '<span class="err">Karneden konu okunamadı. Konu bazlı kırılım içeren, net bir karne mi?</span>'; $("vr-pdflabel").textContent="PDF / fotoğraf seç"; return; }
     let n = 0; const disari = [];
     rows.forEach(r => { const t = topicById(r.id); if (!t) return;
-      const y = $("vy-"+r.id), b = $("vb-"+r.id);
-      if (y && b) { y.value = (+r.y||0); b.value = (+r.b||0); n++; }
+      const d = $("vd-"+r.id), y = $("vy-"+r.id), b = $("vb-"+r.id);
+      if (d && y && b) { d.value = (+r.d||0); y.value = (+r.y||0); b.value = (+r.b||0); vrTop(r.id); n++; }
       else disari.push(t.name); });
     $("vr-pdfmsg").innerHTML = '<span class="ok">'+n+' konu dolduruldu. Kontrol et, sonra Kaydet\'e bas.</span>' +
-      (disari.length ? '<div class="muted">Bu denemenin dağılımında olmayan konular atlandı: '+esc(disari.join(", "))+' (Denemeler → Dağılım\'dan ekleyebilirsin.)</div>' : "");
+      (disari.length ? '<div class="muted">Bu denemenin dağılımında olmayan konular atlandı: '+esc(disari.join(", "))+' ("Tüm konuları göster"i işaretleyip tekrar dene.)</div>' : "");
     $("vr-pdflabel").textContent = "Başka karne seç";
     ev.target.value = "";
   } catch(e){
@@ -622,15 +647,15 @@ $("vr-doldur").onclick = () => {
 };
 $("vr-kaydet").onclick = async () => {
   const eid = $("vr-deneme").value, sid = $("vr-ogrenci").value;
-  const exam = EXAMS.find(e=>e.id===eid);
-  const rows = VR.rows.map(tid => ({ student_id:sid, exam_id:eid, topic_id:tid,
-    count: exam.counts[tid]??0,
-    wrong: Math.max(0, parseInt($("vy-"+tid).value||"0")||0),
-    blank: Math.max(0, parseInt($("vb-"+tid).value||"0")||0) }));
-  const bad = rows.find(r => r.wrong + r.blank > r.count);
-  if (bad) { $("vr-msg").innerHTML = '<span class="err">'+esc(topicById(bad.topic_id).name)+': Y+B soru sayısını aşıyor.</span>'; return; }
+  const g = (p,tid) => Math.max(0, parseInt(($(p+tid)||{}).value||"0")||0);
+  const rows = VR.rows.map(tid => {
+    const d = g("vd-",tid), y = g("vy-",tid), b = g("vb-",tid);
+    return { student_id:sid, exam_id:eid, topic_id:tid, count: d+y+b, wrong:y, blank:b };
+  }).filter(r => r.count > 0);   // yalnızca ÖLÇÜLEN konular kaydedilir
+  if (!rows.length) { $("vr-msg").innerHTML = '<span class="err">Hiç veri girilmemiş. En az bir konuya D/Y/B yaz.</span>'; return; }
   const { error } = await sb.from("results").upsert(rows, { onConflict: "student_id,exam_id,topic_id" });
-  $("vr-msg").innerHTML = error ? '<span class="err">'+esc(error.message)+'</span>' : '<span class="ok">Kaydedildi ('+rows.length+' konu ölçüldü).</span>';
+  $("vr-msg").innerHTML = error ? '<span class="err">'+esc(error.message)+'</span>'
+    : '<span class="ok">Kaydedildi — '+rows.length+' konu ölçüldü ('+rows.reduce((a,r)=>a+r.count,0)+' soru).</span>';
 };
 
 /* ---- teşhis + rapor ---- */
@@ -1485,44 +1510,66 @@ $("se-uret").onclick = async () => {
   } catch(e){ $("se-msg").innerHTML = '<div class="err">'+esc(e.message||e)+'</div>'; }
   $("se-uret").disabled = false;
 };
+function otoBaslik(secilen){
+  const secs = [...new Set(secilen.map(x=>x.t.section))];
+  const konular = [...new Set(secilen.map(x=>x.t.name))];
+  const bolum = secs.length === 1 ? secs[0] + " Matematik" : "Matematik";
+  if (konular.length === 1) return bolum + " — " + konular[0];
+  if (konular.length <= 3) return bolum + " — " + konular.join(", ");
+  return bolum + " Denemesi";
+}
 function sePdf(secilen, sid){
   const cevapli = $("se-cevapli").checked;
   const st = STUDENTS.find(x=>x.id===sid);
   const bugun = new Date().toLocaleDateString("tr-TR");
   const grupla = $("se-sira").value === "konu";
+  const sutun = +$("se-duzen").value;
+  const baslik = ($("se-baslik").value || "").trim() || otoBaslik(secilen);
   let body = "", n = 0, sonGrp = null;
   for (const x of secilen) {
-    if (grupla && x.t.id !== sonGrp) { sonGrp = x.t.id; body += '<h2>'+esc(x.t.section)+' · '+esc(x.t.name)+'</h2>'; }
+    if (grupla && x.t.id !== sonGrp) { sonGrp = x.t.id; body += '<h2>'+esc(x.t.name)+'</h2>'; }
     n++;
     const q = x.q;
     const opts = ["A","B","C","D","E"].map(L => q.options?.[L]!=null?'<div class="opt"><b>'+L+')</b> '+esc(q.options[L])+'</div>':"").join("");
     const img = q.image_url ? '<img class="qimg" src="'+esc(q.image_url)+'" />' : "";
-    body += '<div class="q"><div class="qh">'+n+'.</div><div>'+(q.stem?'<div>'+esc(q.stem)+'</div>':"")+img+'<div class="opts">'+opts+'</div></div></div>';
+    body += '<div class="q"><span class="qn">'+n+'.</span>'+(q.stem?'<div class="qs">'+esc(q.stem)+'</div>':"")+img+
+            (opts?'<div class="opts">'+opts+'</div>':"")+'</div>';
   }
   let anahtar = "";
   if (cevapli) {
     let i = 0;
-    anahtar = '<div class="pagebreak"></div><h1>Cevap Anahtarı</h1><div class="key">' +
-      secilen.map(x => { i++; return '<span><b>'+i+'.</b> '+esc(x.q.correct)+'</span>'; }).join("") + '</div>' +
-      '<h2 style="margin-top:14px">Çözümler</h2>' +
-      secilen.map((x,j) => x.q.solution ? '<div class="sol"><b>'+(j+1)+'.</b> '+esc(x.q.solution)+'</div>' : "").join("");
+    anahtar = '<div class="pagebreak"></div><div class="hd"><h1>Cevap Anahtarı</h1><div class="sub">'+esc(baslik)+'</div></div><div class="key">' +
+      secilen.map(x => { i++; return '<span class="ki"><b>'+i+'.</b> '+esc(x.q.correct)+'</span>'; }).join("") + '</div>' +
+      (secilen.some(x=>x.q.solution) ? '<h2 style="margin-top:16px">Çözümler</h2>' +
+        secilen.map((x,j) => x.q.solution ? '<div class="sol"><b>'+(j+1)+'.</b> '+esc(x.q.solution)+'</div>' : "").join("") : "");
   }
   const w = window.open("", "_blank");
   if (!w) { alert("Pop-up iznini aç."); return; }
-  w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Soru Seti</title><style>'+
-   'body{font-family:Segoe UI,Arial;color:#0f172a;padding:26px;line-height:1.5}'+
-   '.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0f766e;padding-bottom:6px;margin-bottom:10px}'+
-   'h1{font-size:19px;margin:0}.sub{font-size:12px;color:#64748b;text-align:right}'+
-   'h2{font-size:14px;color:#0f766e;border-left:3px solid #0f766e;padding-left:8px;margin:16px 0 6px}'+
-   '.q{display:flex;gap:8px;margin:10px 0;page-break-inside:avoid}.qh{font-weight:bold;min-width:24px}'+
-   '.opts{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:4px;font-size:14px}'+
-   '.qimg{max-width:96%;max-height:340px;display:block;margin:6px 0;border-radius:6px}'+
-   '.key{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;font-size:14px}'+
-   '.sol{font-size:13px;color:#475569;margin:4px 0;page-break-inside:avoid}'+
-   '.pagebreak{page-break-before:always}@media print{body{padding:14px}.qimg{max-height:300px}}'+
+  w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>'+esc(baslik)+'</title><style>'+
+   '@page{size:A4;margin:12mm 10mm}'+
+   'body{font-family:"Times New Roman",Georgia,serif;color:#000;margin:0;line-height:1.35;font-size:10.5pt}'+
+   '.hd{border-bottom:2.5px solid #000;padding-bottom:5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-end}'+
+   'h1{font-size:14pt;margin:0;letter-spacing:.5px;text-transform:uppercase}'+
+   '.sub{font-size:8.5pt;text-align:right;line-height:1.35}'+
+   '.gov{column-count:'+sutun+';column-gap:8mm;'+(sutun>1?'column-rule:0.6px solid #999;':'')+'}'+
+   'h2{font-size:9.5pt;margin:8px 0 4px;padding:2px 6px;background:#eee;border-left:3px solid #000;break-after:avoid;break-inside:avoid;text-transform:uppercase;letter-spacing:.3px}'+
+   '.q{break-inside:avoid;page-break-inside:avoid;margin:0 0 9px;padding-left:16px;position:relative;text-align:justify}'+
+   '.qn{position:absolute;left:0;top:0;font-weight:bold}'+
+   '.qs{margin-bottom:3px}'+
+   '.opts{margin-top:2px}.opt{margin:1px 0;padding-left:4px}'+
+   '.qimg{max-width:100%;max-height:70mm;display:block;margin:3px auto;break-inside:avoid}'+
+   '.key{column-count:1;display:grid;grid-template-columns:repeat(10,1fr);gap:4px;font-size:10pt;border:1px solid #000;padding:8px}'+
+   '.ki{white-space:nowrap}'+
+   '.sol{font-size:9pt;margin:3px 0;break-inside:avoid;color:#333}'+
+   '.pagebreak{break-before:page;page-break-before:always}'+
+   '.ftr{margin-top:6px;border-top:1px solid #999;padding-top:3px;font-size:7.5pt;color:#555;text-align:center}'+
    '</style></head><body>'+
-   '<div class="hd"><h1>Soru Seti</h1><div class="sub">'+(st?'<b>'+esc(st.name)+'</b><br>':'')+bugun+'<br>'+n+' soru</div></div>'+
-   body+anahtar+'<script>window.onload=function(){setTimeout(function(){window.print()},600)}<\/script></body></html>');
+   '<div class="hd"><h1>'+esc(baslik)+'</h1><div class="sub">'+(st?'<b>'+esc(st.name)+'</b>'+(st.sinif?' · '+esc(st.sinif):'')+'<br>':'')+
+     bugun+' · '+n+' soru</div></div>'+
+   '<div class="gov">'+body+'</div>'+
+   '<div class="ftr">Bu set, öğrencinin konu bazlı teşhis sonuçlarına göre hazırlanmıştır.</div>'+
+   anahtar+
+   '<script>window.onload=function(){setTimeout(function(){window.print()},700)}<\/script></body></html>');
   w.document.close();
 }
 $("se-ata").onclick = async () => {
