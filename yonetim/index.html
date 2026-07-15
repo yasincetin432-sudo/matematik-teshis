@@ -1,3 +1,18 @@
+window.delQuestion = async (id) => {
+  const kutu = $("qb-"+id);
+  if (kutu) kutu.style.opacity = ".4";
+  const { error } = await sb.from("questions").delete().eq("id", id);
+  if (error) {
+    if (kutu) kutu.style.opacity = "1";
+    const m = error.message || "";
+    alert(m.indexOf("foreign key") > -1 || m.indexOf("violates") > -1
+      ? "Silinemedi: eski bir kısıt engelliyor.\n\nÇÖZÜM: Supabase → SQL Editor'de guncelleme-7.sql dosyasını bir kez çalıştır."
+      : "Silinemedi: " + m);
+    return;
+  }
+  if (kutu) kutu.remove();
+  hvSecGuncelle();
+};
 <!doctype html>
 <html lang="tr">
 <head>
@@ -65,6 +80,7 @@
     <div class="tab" data-t="gon">Gönderiler <span id="gn-rozet" class="chip hide" style="background:#fef3c7;color:#92400e;margin-left:4px">0</span></div>
     <div class="tab" data-t="tes">Teşhis &amp; Rapor</div>
     <div class="tab" data-t="hav">Soru Havuzu</div>
+    <div class="tab" data-t="kirp">✂ Soru Kırpma</div>
     <div class="tab" data-t="set">Soru Seti PDF</div>
     <div class="tab" data-t="kit">Kitapçık</div>
   </div>
@@ -245,52 +261,6 @@
       <div id="gr-msg"></div>
     </div>
 
-    <div class="card" style="border:2px solid #c7b8f0">
-      <h1 style="font-size:16px;color:#6d28d9">➌ PDF'ten soru kırpma (ücretsiz — AI yok)</h1>
-      <p class="muted">Test kitapçığı PDF'ini yükle → sistem sayfadaki soruları <b>otomatik ayırır</b> → her sorunun düzeyini ve cevabını sen işaretle → toplu havuza ekle. Otomatik bölme tutmazsa fareyle kendin kutu çizebilirsin.</p>
-      <div class="row">
-        <div style="flex:0">
-          <label style="display:inline-block;background:#6d28d9;color:#fff;padding:9px 14px;border-radius:9px;font-weight:600;cursor:pointer;margin-top:16px">
-            <span id="kp-filelabel">PDF seç</span>
-            <input type="file" id="kp-file" accept="application/pdf" style="display:none" />
-          </label>
-        </div>
-        <div><label>Sütun düzeni</label><select id="kp-sutun"><option value="2" selected>2 sütunlu (ÖSYM tarzı)</option><option value="1">Tek sütun</option></select></div>
-        <div style="max-width:150px"><label>Ayırıcı boşluk (cm)</label><input type="number" id="kp-bosluk" value="0.5" min="0.1" max="5" step="0.1" /></div>
-        <div style="max-width:150px"><label>En küçük soru (cm)</label><input type="number" id="kp-minh" value="2" min="0.5" max="15" step="0.5" /></div>
-        <div><label>Varsayılan konu</label><select id="kp-konu"></select></div>
-        <div><label>Varsayılan düzey</label><select id="kp-duzey"><option>temel</option><option>kolay</option><option selected>orta</option><option>zor</option></select></div>
-      </div>
-      <div id="kp-arac" class="hide" style="margin-top:10px">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-          <button class="ghost" id="kp-onceki" style="padding:5px 10px;font-size:12px">‹ Önceki</button>
-          <span id="kp-sayfa" class="chip">–</span>
-          <button class="ghost" id="kp-sonraki" style="padding:5px 10px;font-size:12px">Sonraki ›</button>
-          <button id="kp-bol" style="padding:5px 12px;font-size:12px">⚡ Böl ve önizle</button><label id="kp-tumu-kutu" class="hide" style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;background:#f1f5f9;padding:5px 10px;border-radius:8px"><input type="checkbox" id="kp-tumu" checked style="width:auto"> Tümünü seç</label><button id="kp-uygula" class="hide" style="padding:5px 12px;font-size:12px;background:#059669">✓ Seçilileri uygula</button><span id="kp-olcek" class="muted" style="font-size:11px"></span>
-          <span class="muted" style="font-size:12px">veya görüntü üzerine <b>fareyle sürükleyerek</b> kutu çiz</span>
-        </div>
-        <div style="overflow:auto;max-height:520px;border:1px solid var(--bd);border-radius:8px;background:#f8fafc;position:relative;display:inline-block">
-          <canvas id="kp-canvas" style="display:block;cursor:crosshair"></canvas>
-          <div id="kp-secim" style="position:absolute;border:2px dashed #6d28d9;background:rgba(109,40,217,.12);display:none;pointer-events:none"></div>
-        </div>
-      </div>
-      <div id="kp-liste" style="margin-top:10px"></div>
-      <div id="kp-alt" class="hide" style="margin-top:10px">
-        <div style="background:#f8fafc;border:1px solid var(--bd);border-radius:10px;padding:8px 10px;margin-bottom:8px;display:flex;gap:8px;align-items:end;flex-wrap:wrap">
-          <div style="flex:2;min-width:220px"><label style="margin-top:0">Cevap anahtarı (sırayla, virgülle)</label>
-            <input id="kp-anahtar" placeholder="A,D,D,E,C,E,E,D" /></div>
-          <div style="flex:0"><button class="ghost" id="kp-anahtar-uygula" style="padding:9px 12px;font-size:13px">Dağıt</button></div>
-          <div style="flex:0"><label style="margin-top:0">Hepsine düzey</label>
-            <select id="kp-topludz" style="width:auto"><option value="">—</option><option>temel</option><option>kolay</option><option>orta</option><option>zor</option></select></div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button id="kp-ekle" style="padding:11px 20px">Seçilenleri havuza ekle</button>
-        <button class="ghost" id="kp-temizle">Listeyi temizle</button>
-        <span id="kp-msg"></span>
-        </div>
-      </div>
-    </div>
-
     <div class="card">
       <h1 style="font-size:15px">PDF / fotoğraftan toplu soru al (AI)</h1>
       <p class="muted">İçinde birden çok soru olan bir PDF veya fotoğraf yükle; sorular çıkarılır, konu/zorluk/çeşide otomatik sınıflanır ve <b>taslak</b> olarak havuza girer. Cevap anahtarı yoksa AI çözer — <b>onaydan geçirmeden öğrenciye çıkarma.</b></p>
@@ -326,8 +296,68 @@
         <div style="flex:0"><button class="ghost" id="hv-pdf">PDF yazdır</button></div>
         <div style="flex:0"><label style="margin:0"><input type="checkbox" id="hv-pdfcevap" style="width:auto"/> cevaplı</label></div>
       </div>
-      <div style="margin-top:6px"><span id="hv-sayi" class="muted"></span></div>
+      <div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#f8fafc;border:1px solid var(--bd);border-radius:9px;padding:7px 10px">
+        <label style="margin:0;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;color:#0f172a">
+          <input type="checkbox" id="hv-tumu" style="width:auto"> Tümünü seç</label>
+        <button class="warn" id="hv-topluSil" disabled style="padding:5px 12px;font-size:12px">🗑 Seçilenleri sil (<span id="hv-secsayi">0</span>)</button>
+        <span id="hv-sayi" class="muted" style="margin-left:auto;font-size:12px"></span>
+      </div>
       <div id="hv-liste" class="muted" style="margin-top:8px">Yükleniyor…</div>
+    </div>
+  </div>
+
+  <!-- SORU KIRPMA -->
+  <div id="p-kirp" class="hide">
+    <div class="card" style="padding:10px 12px">
+      <div class="row" style="align-items:center">
+        <div style="flex:0">
+          <label style="display:inline-block;background:#6d28d9;color:#fff;padding:9px 16px;border-radius:9px;font-weight:600;cursor:pointer;margin-top:14px">
+            <span id="kr-filelabel">📄 PDF seç</span>
+            <input type="file" id="kr-file" accept="application/pdf" style="display:none" />
+          </label>
+        </div>
+        <div><label>Konu (yeni sorulara uygulanır)</label><select id="kr-konu"></select></div>
+        <div style="max-width:130px"><label>Zorluk</label><select id="kr-zorluk"><option>temel</option><option>kolay</option><option selected>orta</option><option>zor</option></select></div>
+        <div style="flex:0;margin-top:14px">
+          <span class="chip" style="background:#ede9fe;color:#5b21b6;font-size:13px;padding:6px 12px">Toplam Soru: <b id="kr-sayac">0</b></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="kr-arac" class="hide">
+      <div class="card" style="padding:8px 12px;position:sticky;top:96px;z-index:6">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span id="kr-sayfa" class="chip">–</span>
+          <span class="muted" style="font-size:12px">Sorunun üzerine <b>fareyle sürükle</b> → cevabı seç → Tamam. Sayfalar arasında <b>aşağı kaydırarak</b> gez.</span>
+          <button class="ghost" id="kr-buyut" style="padding:5px 10px;font-size:12px;margin-left:auto">🔍+</button>
+          <button class="ghost" id="kr-kucult" style="padding:5px 10px;font-size:12px">🔍−</button>
+        </div>
+      </div>
+      <div class="card" style="padding:10px;overflow-y:auto;max-height:640px" id="kr-kaydir">
+        <div id="kr-sahne" style="display:flex;flex-direction:column;align-items:center;gap:14px"></div>
+      </div>
+      <div id="kr-pop" style="position:absolute;display:none;background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:6px;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:20">
+        <div style="display:flex;gap:4px;align-items:center">
+          <span class="muted" style="font-size:11px;margin-right:2px">Cevap:</span>
+          <button class="kr-c" data-c="A" style="padding:6px 11px;font-size:13px;background:#eef2f6;color:#334155">A</button>
+          <button class="kr-c" data-c="B" style="padding:6px 11px;font-size:13px;background:#eef2f6;color:#334155">B</button>
+          <button class="kr-c" data-c="C" style="padding:6px 11px;font-size:13px;background:#eef2f6;color:#334155">C</button>
+          <button class="kr-c" data-c="D" style="padding:6px 11px;font-size:13px;background:#eef2f6;color:#334155">D</button>
+          <button class="kr-c" data-c="E" style="padding:6px 11px;font-size:13px;background:#eef2f6;color:#334155">E</button>
+          <button id="kr-tamam" style="padding:6px 14px;font-size:13px;margin-left:4px" disabled>Tamam</button>
+          <button class="ghost" id="kr-iptal" style="padding:6px 10px;font-size:13px">✕</button>
+        </div>
+        <div id="kr-pop-ipucu" class="muted" style="font-size:11px;margin-top:3px;text-align:center">Önce cevabı seç</div>
+      </div>
+    </div>
+
+    <div id="kr-liste"></div>
+    <div id="kr-alt" class="hide">
+      <div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;bottom:10px;box-shadow:0 -2px 12px rgba(0,0,0,.06)">
+        <button id="kr-ekle" style="padding:11px 22px">Havuza ekle</button>
+        <button class="ghost" id="kr-temizle">Listeyi temizle</button>
+        <span id="kr-msg"></span>
+      </div>
     </div>
   </div>
 
@@ -474,7 +504,7 @@ async function boot(){
 }
 function showTab(k){
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x.dataset.t === k));
-  ["ogr","den","veri","gon","tes","hav","set","kit"].forEach(p => $("p-"+p).classList.toggle("hide", p !== k));
+  ["ogr","den","veri","gon","tes","hav","kirp","set","kit"].forEach(p => $("p-"+p).classList.toggle("hide", p !== k));
 }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => showTab(t.dataset.t));
 
@@ -1028,7 +1058,7 @@ $("ts-kopyala").onclick = async () => {
 function fillTopicSelects(){
   const opt = TOPICS.map(t=>'<option value="'+t.id+'">'+esc(t.section)+' · '+esc(t.name)+'</option>').join("");
   $("hv-konu").innerHTML = opt; $("ha-konu").innerHTML = opt; $("gr-konu").innerHTML = opt;
-  const kk = $("kp-konu"); if (kk) kk.innerHTML = opt;
+  const kk = $("kr-konu"); if (kk) kk.innerHTML = opt;
   $("hv-suz").innerHTML = '<option value="">tümü</option>' + opt;
 }
 $("ha-ekle").onclick = async () => {
@@ -1189,30 +1219,65 @@ async function loadPool(){
   if ($("hv-suz").value) q = q.eq("topic_id", $("hv-suz").value);
   const { data } = await q;
   const list = data || [];
-  const c = document.getElementById("hv-sayi"); if (c) c.textContent = list.length + " soru listeleniyor";
+  const c = document.getElementById("hv-sayi"); if (c) c.textContent = list.length + " soru";
+  const konuOpt = TOPICS.map(t=>'<option value="'+t.id+'">'+esc(t.section)+' · '+esc(t.name)+'</option>').join("");
   $("hv-liste").innerHTML = list.length ? list.map(x => {
-    const t = topicById(x.topic_id);
-    const opts = ["A","B","C","D","E"].map(L => x.options?.[L]!=null?'<div><b>'+L+')</b> '+esc(x.options[L])+'</div>':"").join("");
     const st = x.status==="dogrulandi"?"ok":x.status==="taslak"?"tas":"red";
-    const img = x.image_url ? '<img src="'+esc(x.image_url)+'" style="max-width:100%;max-height:260px;border:1px solid #e2e8f0;border-radius:8px;margin:4px 0" />' : "";
-    return '<div class="qbox">'+
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px">'+
-      '<span class="chip">'+esc(t?.name||x.topic_id)+'</span><span class="chip">'+esc(x.difficulty)+'</span>'+
-      (x.qtype?'<span class="chip">'+esc(x.qtype)+'</span>':"")+(x.image_url?'<span class="chip">görselli</span>':"")+'<span class="chip '+st+'">'+esc(x.status)+'</span></div>'+
-      img+(x.stem?'<div style="white-space:pre-wrap">'+esc(x.stem)+'</div>':"")+'<div class="opts">'+opts+'</div>'+
-      '<div class="muted" style="margin-top:5px">Cevap: <b>'+esc(x.correct)+'</b>'+(x.solution?' — '+esc(x.solution):"")+'</div>'+
-      '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+
-        (x.status!=="dogrulandi"?'<button style="padding:5px 10px;font-size:12px" onclick="setStatus(\''+x.id+'\',\'dogrulandi\')">✓ Onayla</button>':"")+
-        (x.status!=="reddedildi"?'<button class="ghost" style="padding:5px 10px;font-size:12px" onclick="setStatus(\''+x.id+'\',\'reddedildi\')">Reddet</button>':"")+
-        '<button class="warn" style="padding:5px 10px;font-size:12px" onclick="delQuestion(\''+x.id+'\')">🗑 Sil</button>'+
+    const opts = ["A","B","C","D","E"].map(L => x.options?.[L]!=null?'<div><b>'+L+')</b> '+esc(x.options[L])+'</div>':"").join("");
+    const img = x.image_url ? '<img src="'+esc(x.image_url)+'" style="max-width:100%;max-height:240px;border:1px solid #e2e8f0;border-radius:8px;margin:4px 0;background:#fff" />' : "";
+    return '<div class="qbox" id="qb-'+x.id+'">'+
+      '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'+
+        '<input type="checkbox" class="hv-sec" value="'+x.id+'" style="width:auto" />'+
+        '<select class="hv-konu-d" data-id="'+x.id+'" style="width:auto;font-size:12px;padding:4px 6px;max-width:220px">'+konuOpt+'</select>'+
+        '<select class="hv-zor-d" data-id="'+x.id+'" style="width:auto;font-size:12px;padding:4px 6px">'+
+          ["temel","kolay","orta","zor"].map(d=>'<option>'+d+'</option>').join("")+'</select>'+
+        '<select class="hv-cev-d" data-id="'+x.id+'" style="width:auto;font-size:12px;padding:4px 6px">'+
+          ["A","B","C","D","E"].map(d=>'<option>'+d+'</option>').join("")+'</select>'+
+        (x.image_url?'<span class="chip">görselli</span>':"")+
+        '<span class="chip '+st+'">'+esc(x.status)+'</span>'+
+        '<span class="hv-kaydedildi muted" id="ok-'+x.id+'" style="font-size:11px;color:#059669;display:none">✓ kaydedildi</span>'+
+        '<button class="warn" style="padding:3px 10px;font-size:11px;margin-left:auto" onclick="delQuestion(\''+x.id+'\')">🗑 Sil</button>'+
       '</div>'+
+      img+(x.stem?'<div style="white-space:pre-wrap">'+esc(x.stem)+'</div>':"")+(opts?'<div class="opts">'+opts+'</div>':"")+
+      (x.solution?'<div class="muted" style="margin-top:4px;font-size:12px">Çözüm: '+esc(x.solution)+'</div>':"")+
+      (x.status!=="dogrulandi"?'<div style="margin-top:6px"><button style="padding:4px 10px;font-size:12px" onclick="setStatus(\''+x.id+'\',\'dogrulandi\')">✓ Onayla</button></div>':"")+
       '</div>';
   }).join("") : "Bu süzgeçte soru yok.";
+  // mevcut değerleri yerleştir + satır içi kaydetme
+  list.forEach(x => {
+    const k = document.querySelector('.hv-konu-d[data-id="'+x.id+'"]');
+    const z = document.querySelector('.hv-zor-d[data-id="'+x.id+'"]');
+    const cv = document.querySelector('.hv-cev-d[data-id="'+x.id+'"]');
+    if (k) k.value = x.topic_id; if (z) z.value = x.difficulty; if (cv) cv.value = x.correct;
+  });
+  document.querySelectorAll(".hv-konu-d,.hv-zor-d,.hv-cev-d").forEach(el => el.onchange = async () => {
+    const id = el.dataset.id;
+    const alan = el.classList.contains("hv-konu-d") ? { topic_id: el.value }
+              : el.classList.contains("hv-zor-d")  ? { difficulty: el.value }
+              : { correct: el.value };
+    const { error } = await sb.from("questions").update(alan).eq("id", id);
+    const ok = $("ok-"+id);
+    if (error) { alert("Kaydedilemedi: " + error.message); return; }
+    if (ok) { ok.style.display = "inline"; setTimeout(()=>{ ok.style.display = "none"; }, 1400); }
+  });
+  document.querySelectorAll(".hv-sec").forEach(el => el.onchange = hvSecGuncelle);
+  $("hv-tumu").checked = false; hvSecGuncelle();
 }
-window.delQuestion = async (id) => {
-  if (!confirm("Bu soru havuzdan KALICI olarak silinsin mi?")) return;
-  const { error } = await sb.from("questions").delete().eq("id", id);
-  if (error) alert("Silinemedi: " + error.message);
+function hvSecGuncelle(){
+  const n = document.querySelectorAll(".hv-sec:checked").length;
+  $("hv-secsayi").textContent = n;
+  $("hv-topluSil").disabled = !n;
+}
+$("hv-tumu").onchange = (e) => {
+  document.querySelectorAll(".hv-sec").forEach(c => c.checked = e.target.checked);
+  hvSecGuncelle();
+};
+$("hv-topluSil").onclick = async () => {
+  const ids = [...document.querySelectorAll(".hv-sec:checked")].map(c=>c.value);
+  if (!ids.length) return;
+  if (!confirm(ids.length + " soru havuzdan silinecek.\n\nÖğrencilere atanmış kitapçıklar etkilenmez (kitapçık kendi kopyasını taşır).\n\nDevam?")) return;
+  const { error } = await sb.from("questions").delete().in("id", ids);
+  if (error) { alert("Silinemedi: " + error.message + "\n\nguncelleme-7.sql çalıştırıldı mı?"); return; }
   loadPool();
 };
 window.setStatus = async (id, status) => {
@@ -1252,267 +1317,223 @@ $("hv-pdf").onclick = async () => {
   w.document.close();
 };
 
-/* ================= PDF → SORU KIRPMA (ücretsiz, AI'sız) =================
-   Yöntem: sayfa görüntüsünde satır bazlı "mürekkep yoğunluğu" ölçülür; soruları
-   ayıran beyaz boşluk şeritleri bulunur ve oralardan kesilir (projeksiyon profili).
-   Otomatik bölme bir ÖNERİDİR; öğretmen düzeltir, siler veya elle kutu çizer. */
+/* ================= ✂ SORU KIRPMA (sürekli kaydırma, doğrudan havuz) =================
+   PDF tüm sayfalarıyla alt alta açılır; aşağı kaydırarak gezersin.
+   Kutu çiz → cevabı seç → Tamam → soru DOĞRUDAN havuza hazır listeye girer.
+   Onay/taslak adımı yok: cevabı sen seçtiğin için soru zaten doğrulanmıştır. */
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
-let KP = { pdf:null, sayfa:1, toplam:0, canvas:null, ctx:null, temiz:null, adaylar:[], sayac:0, olcek:1.6, oneri:[] };
-const PX_PER_CM = () => (KP.olcek * 72) / 2.54;   // pdf.js: scale 1.0 = 72 dpi
+let KR = { pdf:null, toplam:0, olcek:1.5, sayfalar:[], alinan:[], sayac:0, bekleyen:null, cevap:null };
 
-document.getElementById("kp-file").addEventListener("change", async (ev) => {
+document.getElementById("kr-file").addEventListener("change", async (ev) => {
   const f = ev.target.files[0]; if (!f) return;
-  if (!window.pdfjsLib) { alert("PDF kütüphanesi yüklenemedi. Sayfayı yenileyip tekrar dene."); return; }
-  $("kp-filelabel").textContent = "Yükleniyor…";
+  if (!window.pdfjsLib) { alert("PDF kütüphanesi yüklenemedi. Sayfayı yenile."); return; }
+  $("kr-filelabel").textContent = "Açılıyor…";
   try {
-    const buf = await f.arrayBuffer();
-    KP.pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    KP.toplam = KP.pdf.numPages; KP.sayfa = 1;
-    $("kp-arac").classList.remove("hide");
-    await kpCiz();
-    $("kp-filelabel").textContent = "Başka PDF seç";
-  } catch(e){ alert("PDF açılamadı: " + (e.message||e)); $("kp-filelabel").textContent = "PDF seç"; }
+    KR.pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
+    KR.toplam = KR.pdf.numPages;
+    $("kr-arac").classList.remove("hide");
+    await krSahneKur();
+    $("kr-filelabel").textContent = "📄 Başka PDF";
+  } catch(e){ alert("PDF açılamadı: " + (e.message||e)); $("kr-filelabel").textContent = "📄 PDF seç"; }
   ev.target.value = "";
 });
-async function kpCiz(){
-  const page = await KP.pdf.getPage(KP.sayfa);
-  const vp = page.getViewport({ scale: KP.olcek });
-  const c = document.getElementById("kp-canvas");
-  c.width = vp.width; c.height = vp.height;
-  KP.canvas = c; KP.ctx = c.getContext("2d", { willReadFrequently: true });
-  await page.render({ canvasContext: KP.ctx, viewport: vp }).promise;
-  // temiz kopya (önizleme çizgileri kırpmaya karışmasın)
-  const t = document.createElement("canvas"); t.width = c.width; t.height = c.height;
-  t.getContext("2d").drawImage(c, 0, 0); KP.temiz = t;
-  KP.oneri = []; $("kp-uygula").classList.add("hide");
-  $("kp-sayfa").textContent = "Sayfa " + KP.sayfa + " / " + KP.toplam;
-  const cm = (c.height / PX_PER_CM()).toFixed(1);
-  $("kp-olcek").textContent = "sayfa yüksekliği ≈ " + cm + " cm";
-}
-$("kp-onceki").onclick = async () => { if (KP.sayfa > 1) { KP.sayfa--; await kpCiz(); } };
-$("kp-sonraki").onclick = async () => { if (KP.sayfa < KP.toplam) { KP.sayfa++; await kpCiz(); } };
 
-/* --- otomatik bölme: boşluk (projeksiyon) analizi --- */
-$("kp-bol").onclick = () => {
-  if (!KP.temiz) return;
-  const W = KP.temiz.width, H = KP.temiz.height;
-  const ctx = KP.temiz.getContext("2d", { willReadFrequently: true });
-  const sutun = +$("kp-sutun").value;
-  const bosluk = Math.max(3, Math.round((+$("kp-bosluk").value || 0.5) * PX_PER_CM()));
-  const enAz   = Math.max(20, Math.round((+$("kp-minh").value || 2) * PX_PER_CM()));
-  const genislik = Math.floor(W / sutun);
-  KP.oneri = [];
-  for (let k = 0; k < sutun; k++) {
-    const x0 = k * genislik, gen = (k === sutun-1 ? W - x0 : genislik);
-    const img = ctx.getImageData(x0, 0, gen, H).data;
-    const yog = new Array(H).fill(0);
-    for (let y = 0; y < H; y++) {
-      let n = 0;
-      for (let x = 0; x < gen; x += 2) {
-        const i = (y*gen + x) * 4;
-        if ((img[i] + img[i+1] + img[i+2]) / 3 < 170) n++;
-      }
-      yog[y] = n;
-    }
-    const esik = 2;
-    const bloklar = []; let bas = null, bosSay = 0;
-    for (let y = 0; y < H; y++) {
-      if (yog[y] > esik) { if (bas === null) bas = y; bosSay = 0; }
-      else if (bas !== null) { bosSay++; if (bosSay >= bosluk) { bloklar.push([bas, y-bosSay]); bas = null; bosSay = 0; } }
-    }
-    if (bas !== null) bloklar.push([bas, H-1]);
-    bloklar.forEach(([a,b]) => {
-      if (b - a < enAz) return;
-      const pad = Math.round(0.15 * PX_PER_CM());
-      KP.oneri.push({ x:x0, y:Math.max(0,a-pad), w:gen, h:Math.min(H,b+pad)-Math.max(0,a-pad), sec:true });
-    });
+async function krSahneKur(){
+  krPopKapat();
+  const sahne = $("kr-sahne"); sahne.innerHTML = ""; KR.sayfalar = [];
+  for (let p = 1; p <= KR.toplam; p++) {
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "position:relative;display:inline-block;box-shadow:0 1px 6px rgba(0,0,0,.12);background:#fff";
+    wrap.dataset.p = p;
+    const et = document.createElement("div");
+    et.className = "chip";
+    et.style.cssText = "position:absolute;top:-11px;left:8px;z-index:3;background:#334155;color:#fff;font-size:10px";
+    et.textContent = "Sayfa " + p;
+    const c = document.createElement("canvas");
+    c.style.cssText = "display:block;cursor:crosshair;max-width:100%";
+    wrap.appendChild(c); wrap.appendChild(et);
+    sahne.appendChild(wrap);
+    const kayit = { p, wrap, canvas:c, ctx:null, temiz:null, cizildi:false };
+    KR.sayfalar.push(kayit);
+    krCizmeBagla(kayit);
   }
-  kpOnizle();
-  if (KP.oneri.length) {
-    $("kp-uygula").classList.remove("hide");
-    $("kp-tumu-kutu").classList.remove("hide");
-    $("kp-tumu").checked = true;
-    kpSayacGuncelle();
-    $("kp-msg").innerHTML = '<span class="ok">'+KP.oneri.length+' aday bulundu.</span>' +
-      '<div class="muted" style="font-size:12px">İstemediğin kutuya <b>tıklayarak</b> seçimden çıkar (başlık, cevap anahtarı, sayfa no gibi). ' +
-      'Fazla parçalandıysa <b>ayırıcı boşluğu artır</b>; sorular birleştiyse <b>azalt</b>.</div>';
-  } else {
-    $("kp-uygula").classList.add("hide");
-    $("kp-tumu-kutu").classList.add("hide");
-    $("kp-msg").innerHTML = '<span class="err">Bölünemedi. Boşluk değerini küçült ya da fareyle kutu çiz.</span>';
-  }
-};
-function kpOnizle(){
-  const ctx = KP.ctx;
-  ctx.drawImage(KP.temiz, 0, 0);
-  ctx.save();
-  KP.oneri.forEach((r,i) => {
-    const on = r.sec;
-    ctx.strokeStyle = on ? "#6d28d9" : "#94a3b8";
-    ctx.lineWidth = on ? 2 : 1;
-    ctx.setLineDash(on ? [] : [5,4]);
-    ctx.strokeRect(r.x+1, r.y, r.w-2, r.h);
-    if (!on) { ctx.fillStyle = "rgba(148,163,184,.18)"; ctx.fillRect(r.x+1, r.y, r.w-2, r.h); }
-    ctx.setLineDash([]);
-    ctx.fillStyle = on ? "rgba(109,40,217,.9)" : "rgba(148,163,184,.9)";
-    ctx.fillRect(r.x+3, r.y+3, 30, 19);
-    ctx.fillStyle = "#fff"; ctx.font = "bold 12px sans-serif";
-    ctx.fillText((on ? "✓" : "✕") + (i+1), r.x+7, r.y+17);
+  // görünen sayfaları tembel çiz (bellek dostu)
+  const io = new IntersectionObserver((girisler) => {
+    girisler.forEach(g => { if (g.isIntersecting) {
+      const k = KR.sayfalar.find(x => x.wrap === g.target);
+      if (k && !k.cizildi) krSayfaCiz(k);
+      if (k) $("kr-sayfa").textContent = "Sayfa " + k.p + " / " + KR.toplam;
+    }});
+  }, { root: $("kr-kaydir"), rootMargin: "300px" });
+  KR.sayfalar.forEach(k => io.observe(k.wrap));
+  await krSayfaCiz(KR.sayfalar[0]);
+  $("kr-sayfa").textContent = "Sayfa 1 / " + KR.toplam;
+}
+async function krSayfaCiz(k){
+  if (!k || k.cizildi) return;
+  const page = await KR.pdf.getPage(k.p);
+  const vp = page.getViewport({ scale: KR.olcek });
+  k.canvas.width = vp.width; k.canvas.height = vp.height;
+  k.ctx = k.canvas.getContext("2d", { willReadFrequently: true });
+  await page.render({ canvasContext: k.ctx, viewport: vp }).promise;
+  const t = document.createElement("canvas"); t.width = vp.width; t.height = vp.height;
+  t.getContext("2d").drawImage(k.canvas, 0, 0); k.temiz = t;
+  k.cizildi = true;
+  krOverlay(k);
+}
+function krOverlay(k){
+  if (!k || !k.temiz) return;
+  k.ctx.drawImage(k.temiz, 0, 0);
+  KR.alinan.filter(a => a.sayfa === k.p && a.olcek === KR.olcek).forEach(a => {
+    k.ctx.strokeStyle = "#dc2626"; k.ctx.lineWidth = 2;
+    k.ctx.strokeRect(a.x, a.y, a.w, a.h);
+    const ty = a.y - 18 < 0 ? a.y : a.y - 18;
+    k.ctx.fillStyle = "#dc2626"; k.ctx.fillRect(a.x, ty, 76, 18);
+    k.ctx.fillStyle = "#fff"; k.ctx.font = "bold 11px sans-serif";
+    k.ctx.fillText(a.sira + ". Soru · " + a.cevap, a.x + 4, ty + 13);
   });
-  ctx.restore();
 }
-function kpSayacGuncelle(){
-  const n = KP.oneri.filter(r=>r.sec).length;
-  $("kp-uygula").textContent = "✓ Seçili " + n + " kutuyu uygula";
-  $("kp-uygula").disabled = !n;
+function krTumOverlay(){ KR.sayfalar.forEach(k => k.cizildi && krOverlay(k)); }
+async function krOlcekDegistir(yeni){
+  KR.olcek = yeni; krPopKapat();
+  KR.sayfalar.forEach(k => { k.cizildi = false; });
+  const ilk = KR.sayfalar.find(k => k.wrap.getBoundingClientRect().bottom > 0);
+  await krSayfaCiz(ilk || KR.sayfalar[0]);
+  KR.sayfalar.forEach(k => { if (!k.cizildi && k.wrap.getBoundingClientRect().top < window.innerHeight * 2) krSayfaCiz(k); });
 }
-$("kp-tumu").onchange = (e) => {
-  KP.oneri.forEach(r => r.sec = e.target.checked);
-  kpOnizle(); kpSayacGuncelle();
-};
-$("kp-uygula").onclick = () => {
-  KP.oneri.filter(r=>r.sec).forEach(r => kpAday(r.x, r.y, r.w, r.h));
-  KP.oneri = []; $("kp-uygula").classList.add("hide"); $("kp-tumu-kutu").classList.add("hide");
-  KP.ctx.drawImage(KP.temiz, 0, 0);
-  $("kp-msg").innerHTML = '<span class="ok">Aday listeye eklendi — aşağıdan düzey ve cevapları işaretle.</span>';
-};
-["kp-bosluk","kp-minh","kp-sutun"].forEach(id => { const e = $(id); if (e) e.onchange = () => { if (KP.oneri.length) $("kp-bol").click(); }; });
+$("kr-buyut").onclick = () => { if (KR.olcek < 3) krOlcekDegistir(+(KR.olcek + 0.25).toFixed(2)); };
+$("kr-kucult").onclick = () => { if (KR.olcek > 0.75) krOlcekDegistir(+(KR.olcek - 0.25).toFixed(2)); };
 
-/* --- fareyle: kısa tıklama = kutu seç/bırak, sürükleme = yeni kutu çiz --- */
-(function(){
-  const c = document.getElementById("kp-canvas"), kutu = document.getElementById("kp-secim");
-  let bas = null;
-  const oran = () => { const r = c.getBoundingClientRect(); return { rx: c.width / r.width, ry: c.height / r.height, r }; };
+/* --- her sayfa için kutu çizme --- */
+function krCizmeBagla(k){
+  const c = k.canvas;
+  let bas = null, kutu = null;
+  const olc = () => { const r = c.getBoundingClientRect(); return { rx: c.width/r.width, ry: c.height/r.height, r }; };
   c.addEventListener("mousedown", (e) => {
-    const { r } = oran();
+    krPopKapat();
+    const { r } = olc();
     bas = { x: e.clientX - r.left, y: e.clientY - r.top };
-    kutu.style.display = "block"; kutu.style.left = (c.offsetLeft+bas.x)+"px"; kutu.style.top = (c.offsetTop+bas.y)+"px";
-    kutu.style.width = "0px"; kutu.style.height = "0px";
+    kutu = document.createElement("div");
+    kutu.id = "kr-secim";
+    kutu.style.cssText = "position:absolute;border:2px solid #dc2626;background:rgba(220,38,38,.08);pointer-events:none;z-index:4";
+    kutu.style.left = bas.x+"px"; kutu.style.top = bas.y+"px";
+    k.wrap.appendChild(kutu);
   });
   c.addEventListener("mousemove", (e) => {
-    if (!bas) return;
-    const { r } = oran();
+    if (!bas || !kutu) return;
+    const { r } = olc();
     const x = e.clientX - r.left, y = e.clientY - r.top;
-    kutu.style.left = (c.offsetLeft+Math.min(bas.x,x))+"px"; kutu.style.top = (c.offsetTop+Math.min(bas.y,y))+"px";
+    kutu.style.left = Math.min(bas.x,x)+"px"; kutu.style.top = Math.min(bas.y,y)+"px";
     kutu.style.width = Math.abs(x-bas.x)+"px"; kutu.style.height = Math.abs(y-bas.y)+"px";
   });
   c.addEventListener("mouseup", (e) => {
     if (!bas) return;
-    const { rx, ry, r } = oran();
+    const { rx, ry, r } = olc();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     const w = Math.abs(x-bas.x), h = Math.abs(y-bas.y);
     const sx = Math.min(bas.x,x), sy = Math.min(bas.y,y);
-    bas = null; kutu.style.display = "none";
-    if (w < 6 && h < 6) {                       // KISA TIKLAMA → önizleme kutusunu seç/bırak
-      if (!KP.oneri.length) return;
-      const px = x*rx, py = y*ry;
-      const hit = KP.oneri.find(o => px>=o.x && px<=o.x+o.w && py>=o.y && py<=o.y+o.h);
-      if (hit) { hit.sec = !hit.sec; kpOnizle(); kpSayacGuncelle();
-        $("kp-tumu").checked = KP.oneri.every(o=>o.sec); }
-      return;
-    }
-    if (w > 30 && h > 30) kpAday(sx*rx, sy*ry, w*rx, h*ry);  // SÜRÜKLEME → yeni kutu
+    bas = null;
+    if (w < 25 || h < 25) { if (kutu) kutu.remove(); kutu = null; return; }
+    KR.bekleyen = { k, x: sx*rx, y: sy*ry, w: w*rx, h: h*ry, kutu };
+    KR.cevap = null;
+    document.querySelectorAll(".kr-c").forEach(b => { b.style.background = "#eef2f6"; b.style.color = "#334155"; });
+    $("kr-tamam").disabled = true;
+    $("kr-pop-ipucu").textContent = "Önce cevabı seç";
+    const pop = $("kr-pop");
+    pop.style.display = "block";
+    const wr = k.wrap.getBoundingClientRect();
+    pop.style.left = (window.scrollX + wr.left + sx) + "px";
+    pop.style.top  = (window.scrollY + wr.top + sy + h + 8) + "px";
+    kutu = null;
   });
-})();
-
-/* --- aday soru: kırp + listeye ekle --- */
-function kpAday(x, y, w, h){
+}
+function krPopKapat(){
+  $("kr-pop").style.display = "none";
+  document.querySelectorAll("#kr-secim").forEach(x => x.remove());
+  KR.bekleyen = null; KR.cevap = null;
+  $("kr-tamam").disabled = true;
+}
+document.querySelectorAll(".kr-c").forEach(b => b.onclick = () => {
+  KR.cevap = b.dataset.c;
+  document.querySelectorAll(".kr-c").forEach(o => {
+    const on = o === b;
+    o.style.background = on ? "#0f766e" : "#eef2f6";
+    o.style.color = on ? "#fff" : "#334155";
+  });
+  $("kr-tamam").disabled = false;
+  $("kr-pop-ipucu").textContent = "Cevap: " + KR.cevap + " — Tamam'a bas";
+});
+$("kr-iptal").onclick = krPopKapat;
+$("kr-tamam").onclick = () => {
+  if (!KR.bekleyen || !KR.cevap) return;
+  const r = KR.bekleyen, k = r.k;
   const tmp = document.createElement("canvas");
-  tmp.width = Math.round(w); tmp.height = Math.round(h);
-  tmp.getContext("2d").drawImage(KP.temiz || KP.canvas, Math.round(x), Math.round(y), Math.round(w), Math.round(h), 0, 0, Math.round(w), Math.round(h));
-  const id = "kp" + (++KP.sayac);
-  KP.adaylar.push({ id, dataUrl: tmp.toDataURL("image/jpeg", 0.85) });
-  kpListeCiz();
-}
-function kpListeCiz(){
-  const l = document.getElementById("kp-liste");
-  $("kp-alt").classList.toggle("hide", !KP.adaylar.length);
-  if (!KP.adaylar.length) { l.innerHTML = ""; return; }
+  tmp.width = Math.round(r.w); tmp.height = Math.round(r.h);
+  tmp.getContext("2d").drawImage(k.temiz, Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h), 0, 0, Math.round(r.w), Math.round(r.h));
+  KR.sayac++;
+  KR.alinan.push({ id:"kr"+KR.sayac, sira:KR.sayac, sayfa:k.p, olcek:KR.olcek,
+    x:r.x, y:r.y, w:r.w, h:r.h, dataUrl: tmp.toDataURL("image/jpeg", 0.88),
+    cevap: KR.cevap, konu: $("kr-konu").value, zorluk: $("kr-zorluk").value });
+  krPopKapat(); krOverlay(k); krListe();
+};
+function krListe(){
+  $("kr-sayac").textContent = KR.alinan.length;
+  $("kr-alt").classList.toggle("hide", !KR.alinan.length);
+  const l = $("kr-liste");
+  if (!KR.alinan.length) { l.innerHTML = ""; return; }
   const konuOpt = TOPICS.map(t=>'<option value="'+t.id+'">'+esc(t.section)+' · '+esc(t.name)+'</option>').join("");
-  l.innerHTML = '<div class="muted" style="margin-bottom:6px"><b>'+KP.adaylar.length+' aday soru</b> — her biri için düzey ve cevabı işaretle, gereksizleri sil.</div>' +
-    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">' +
-    KP.adaylar.map(a => '<div class="qbox" style="padding:8px">' +
-      '<img src="'+a.dataUrl+'" style="width:100%;border:1px solid #e2e8f0;border-radius:6px;background:#fff" />' +
-      '<div style="margin-top:6px"><select id="'+a.id+'-konu" style="font-size:12px;padding:5px">'+konuOpt+'</select></div>' +
-      '<div style="display:flex;gap:4px;margin-top:6px" id="'+a.id+'-duzeygrup">' +
-        ["temel","kolay","orta","zor"].map(d =>
-          '<label style="flex:1;text-align:center;font-size:11px;padding:5px 2px;border:1px solid #cbd5e1;border-radius:7px;cursor:pointer;background:#fff">' +
-          '<input type="radio" name="'+a.id+'-d" value="'+d+'" style="display:none" '+(d==="orta"?"checked":"")+'>'+d+'</label>').join("") +
-      '</div>' +
-      '<div style="display:flex;gap:4px;margin-top:6px;align-items:center">' +
-        '<span class="muted" style="font-size:11px">Cevap</span>' +
-        '<select id="'+a.id+'-c" style="font-size:12px;padding:4px;flex:1"><option value="">—</option>'+["A","B","C","D","E"].map(x=>'<option>'+x+'</option>').join("")+'</select>' +
-        '<button class="warn" style="padding:4px 8px;font-size:11px" onclick="kpSil(\''+a.id+'\')">Sil</button>' +
-      '</div></div>').join("") + '</div>';
-  // varsayılan konu/düzey uygula + radyo görselleştir
-  KP.adaylar.forEach(a => {
-    const ks = $(a.id+"-konu"); if (ks && $("kp-konu").value) ks.value = $("kp-konu").value;
-    const dv = $("kp-duzey").value;
-    const r = document.querySelector('input[name="'+a.id+'-d"][value="'+dv+'"]'); if (r) r.checked = true;
-    document.querySelectorAll('input[name="'+a.id+'-d"]').forEach(inp => {
-      const boya = () => document.querySelectorAll('input[name="'+a.id+'-d"]').forEach(o => {
-        o.parentElement.style.background = o.checked ? "#0f766e" : "#fff";
-        o.parentElement.style.color = o.checked ? "#fff" : "#334155";
-        o.parentElement.style.borderColor = o.checked ? "#0f766e" : "#cbd5e1";
-      });
-      inp.onchange = boya; boya();
-    });
-  });
+  l.innerHTML = '<div class="card"><h1 style="font-size:15px">Alınan sorular ('+KR.alinan.length+')</h1>'+
+    '<p class="muted">Bunlar <b>doğrudan onaylı</b> olarak havuza girer — cevabı sen seçtin.</p>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px">'+
+    KR.alinan.map(a => '<div class="qbox" style="padding:8px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
+        '<span class="chip" style="background:#dc2626;color:#fff">'+a.sira+'. Soru</span>'+
+        '<button class="warn" style="padding:3px 9px;font-size:11px" onclick="krSil(\''+a.id+'\')">Sil</button></div>'+
+      '<img src="'+a.dataUrl+'" style="width:100%;border:1px solid #e2e8f0;border-radius:6px;background:#fff" />'+
+      '<div style="margin-top:6px"><select id="'+a.id+'-k" style="font-size:12px;padding:5px">'+konuOpt+'</select></div>'+
+      '<div style="display:flex;gap:5px;margin-top:5px">'+
+        '<select id="'+a.id+'-z" style="font-size:12px;padding:4px;flex:1"><option>temel</option><option>kolay</option><option>orta</option><option>zor</option></select>'+
+        '<select id="'+a.id+'-c" style="font-size:12px;padding:4px;width:66px"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>'+
+      '</div></div>').join("")+'</div></div>';
+  KR.alinan.forEach(a => { $(a.id+"-k").value = a.konu; $(a.id+"-z").value = a.zorluk; $(a.id+"-c").value = a.cevap; });
 }
-window.kpSil = (id) => { KP.adaylar = KP.adaylar.filter(a=>a.id!==id); kpListeCiz(); };
-$("kp-temizle").onclick = () => { KP.adaylar = []; kpListeCiz(); $("kp-msg").textContent = ""; };
-$("kp-anahtar-uygula").onclick = () => {
-  const harfler = ($("kp-anahtar").value||"").toUpperCase().replace(/[^A-E]/g,"").split("");
-  if (!harfler.length) { $("kp-msg").innerHTML = '<span class="err">Cevap anahtarı boş (ör. A,D,D,E).</span>'; return; }
-  let n = 0;
-  KP.adaylar.forEach((a,i) => { if (harfler[i]) { const sel = $(a.id+"-c"); if (sel) { sel.value = harfler[i]; n++; } } });
-  $("kp-msg").innerHTML = '<span class="ok">'+n+' soruya cevap dağıtıldı.</span>' +
-    (harfler.length < KP.adaylar.length ? ' <span class="muted">Son '+(KP.adaylar.length-harfler.length)+' soru boş kaldı.</span>' : "");
+window.krSil = (id) => {
+  const a = KR.alinan.find(x=>x.id===id);
+  KR.alinan = KR.alinan.filter(x=>x.id!==id);
+  const k = KR.sayfalar.find(x=>x.p === (a&&a.sayfa)); if (k) krOverlay(k);
+  krListe();
 };
-$("kp-topludz").onchange = (e) => {
-  const d = e.target.value; if (!d) return;
-  KP.adaylar.forEach(a => {
-    const r = document.querySelector('input[name="'+a.id+'-d"][value="'+d+'"]');
-    if (r) { r.checked = true; r.dispatchEvent(new Event("change")); }
-  });
-  e.target.value = "";
-  $("kp-msg").innerHTML = '<span class="ok">Tüm adaylara "'+d+'" düzeyi uygulandı.</span>';
-};
-
-function dataUrlToBlob(d){
+$("kr-temizle").onclick = () => { if (!confirm("Alınan tüm sorular listeden çıkarılsın mı?")) return;
+  KR.alinan = []; KR.sayac = 0; krTumOverlay(); krListe(); $("kr-msg").textContent = ""; };
+function krBlob(d){
   const [b, veri] = d.split(","); const mime = b.match(/:(.*?);/)[1];
   const bin = atob(veri); const arr = new Uint8Array(bin.length);
   for (let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
   return new Blob([arr], { type: mime });
 }
-$("kp-ekle").onclick = async () => {
-  if (!KP.adaylar.length) return;
-  const eksik = KP.adaylar.filter(a => !$(a.id+"-c").value);
-  if (eksik.length && !confirm(eksik.length+" soruda cevap seçilmemiş. Bunlar TASLAK olarak eklenecek (öğrenciye çıkmaz). Devam?")) return;
-  $("kp-ekle").disabled = true; $("kp-msg").innerHTML = '<span class="muted">Yükleniyor…</span>';
+$("kr-ekle").onclick = async () => {
+  if (!KR.alinan.length) return;
+  $("kr-ekle").disabled = true; $("kr-msg").innerHTML = '<span class="muted">Yükleniyor…</span>';
   let ok = 0, hata = 0;
-  for (const a of KP.adaylar) {
+  for (const a of KR.alinan) {
     try {
-      const blob = dataUrlToBlob(a.dataUrl);
       const path = "q_"+Date.now()+"_"+Math.random().toString(36).slice(2,7)+".jpg";
-      const up = await sb.storage.from("soru-gorselleri").upload(path, blob, { contentType:"image/jpeg" });
+      const up = await sb.storage.from("soru-gorselleri").upload(path, krBlob(a.dataUrl), { contentType:"image/jpeg" });
       if (up.error) throw up.error;
       const url = sb.storage.from("soru-gorselleri").getPublicUrl(path).data.publicUrl;
-      const cev = $(a.id+"-c").value;
-      const dz = (document.querySelector('input[name="'+a.id+'-d"]:checked')||{}).value || "orta";
       const { error } = await sb.from("questions").insert([{
-        topic_id: $(a.id+"-konu").value, difficulty: dz, qtype: "grafik",
+        topic_id: $(a.id+"-k").value, difficulty: $(a.id+"-z").value, qtype: "grafik",
         has_figure: true, image_url: url, stem: "", options: {},
-        correct: cev || "A", solution: null,
-        status: cev ? "dogrulandi" : "taslak", source: "cikmis", content_hash: await sha256(url)
+        correct: $(a.id+"-c").value, solution: null,
+        status: "dogrulandi", source: "cikmis", content_hash: await sha256(url)
       }]);
       if (error) throw error;
       ok++;
     } catch(e){ hata++; console.error(e); }
   }
-  $("kp-msg").innerHTML = '<span class="ok">'+ok+' soru havuza eklendi.</span>' + (hata?' <span class="err">'+hata+' başarısız.</span>':"");
-  KP.adaylar = []; kpListeCiz(); loadPool();
-  $("kp-ekle").disabled = false;
+  $("kr-msg").innerHTML = '<span class="ok">'+ok+' soru havuza eklendi (onaylı).</span>' + (hata?' <span class="err">'+hata+' başarısız.</span>':"");
+  KR.alinan = []; KR.sayac = 0; krTumOverlay(); krListe(); loadPool();
+  $("kr-ekle").disabled = false;
 };
 
 /* ================= SORU SETİ PDF ================= */
