@@ -629,22 +629,6 @@ document.getElementById("vr-pdf").addEventListener("change", async (ev) => {
   }
 });
 
-$("vr-doldur").onclick = () => {
-  if (!VR.rows.length) { $("vr-bulkmsg").textContent = "Önce deneme + öğrenci seç."; return; }
-  const lines = $("vr-bulk").value.split("\n").map(l=>l.trim()).filter(Boolean);
-  let okN = 0; const bad = [];
-  for (const line of lines) {
-    const parts = line.split(/[;,\t]/).map(x=>x.trim()).filter(x=>x!=="");
-    if (parts.length < 3) { bad.push(line); continue; }
-    const b = parseInt(parts[parts.length-1]), y = parseInt(parts[parts.length-2]);
-    const key = norm(parts.slice(0, parts.length-2).join(" "));
-    if (isNaN(y) || isNaN(b) || !key) { bad.push(line); continue; }
-    const tid = VR.rows.find(id => { const n = norm(topicById(id).name); return n.includes(key) || key.includes(n); });
-    if (!tid) { bad.push(line); continue; }
-    $("vy-"+tid).value = y; $("vb-"+tid).value = b; okN++;
-  }
-  $("vr-bulkmsg").textContent = okN + " satır dolduruldu." + (bad.length ? " Eşleşmeyen: " + bad.join(" | ") : "");
-};
 $("vr-kaydet").onclick = async () => {
   const eid = $("vr-deneme").value, sid = $("vr-ogrenci").value;
   const g = (p,tid) => Math.max(0, parseInt(($(p+tid)||{}).value||"0")||0);
