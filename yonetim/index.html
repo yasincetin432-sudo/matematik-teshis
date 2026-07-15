@@ -366,8 +366,13 @@
     <div class="card no-print">
       <div class="row">
         <div><label>Öğrenci</label><select id="kt-ogrenci"></select></div>
-        <div><label>Konu başına soru</label><select id="kt-adet"><option>1</option><option selected>2</option><option>3</option></select></div>
-        <div style="flex:0"><button id="kt-olustur" disabled>Kitapçık oluştur ve ata</button></div>
+        <div><label>Konu başına soru</label><select id="kt-adet"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select></div>
+        <div><label>Düzen</label><select id="kt-duzen"><option value="2" selected>2 sütun (ÖSYM tarzı)</option><option value="1">Tek sütun</option></select></div>
+        <div style="flex:0"><button id="kt-olustur" disabled style="padding:11px 18px">Kitapçık oluştur ve ata</button></div>
+      </div>
+      <div class="row" style="margin-top:4px">
+        <div style="flex:2"><label>Başlık (boş bırakırsan otomatik: "Caner AYT-2" gibi numaralandırılır)</label><input id="kt-baslik" placeholder="otomatik" /></div>
+        <div style="flex:0"><label style="margin-top:16px;display:flex;align-items:center;gap:6px;font-size:13px;color:#0f172a;cursor:pointer"><input type="checkbox" id="kt-cevapli" style="width:auto"> Cevap anahtarı ekle (öğretmen kopyası)</label></div>
       </div>
       <p class="muted">Zayıf konulara (&lt;%65) havuzdan <b>doğrulanmış</b> ve bu öğrenciye daha önce verilmemiş sorular seçilir.</p>
       <div id="kt-zayif" class="muted"></div>
@@ -1534,16 +1539,15 @@ function otoBaslik(secilen){
   if (konular.length <= 3) return bolum + " — " + konular.join(", ");
   return bolum + " Denemesi";
 }
-function sePdf(secilen, sid){
-  const cevapli = $("se-cevapli").checked;
-  const st = STUDENTS.find(x=>x.id===sid);
+
+/* ===== ORTAK ÖSYM TARZI PDF MOTORU =====
+   secilen: [{t:konu, q:soru}], secenek: {baslik, ustBaslik, st, cevapli, sutun, grupla, altNot} */
+function osymPdf(secilen, o){
   const bugun = new Date().toLocaleDateString("tr-TR");
-  const grupla = $("se-sira").value === "konu";
-  const sutun = +$("se-duzen").value;
-  const baslik = ($("se-baslik").value || "").trim() || otoBaslik(secilen);
+  const st = o.st;
   let body = "", n = 0, sonGrp = null;
   for (const x of secilen) {
-    if (grupla && x.t.id !== sonGrp) { sonGrp = x.t.id; body += '<h2>'+esc(x.t.name)+'</h2>'; }
+    if (o.grupla && x.t && x.t.id !== sonGrp) { sonGrp = x.t.id; body += '<h2>'+esc(x.t.name)+'</h2>'; }
     n++;
     const q = x.q;
     const opts = ["A","B","C","D","E"].map(L => q.options?.[L]!=null?'<div class="opt"><b>'+L+')</b> '+esc(q.options[L])+'</div>':"").join("");
@@ -1552,41 +1556,48 @@ function sePdf(secilen, sid){
             (opts?'<div class="opts">'+opts+'</div>':"")+'</div>';
   }
   let anahtar = "";
-  if (cevapli) {
+  if (o.cevapli) {
     let i = 0;
-    anahtar = '<div class="pagebreak"></div><div class="hd"><h1>Cevap Anahtarı</h1><div class="sub">'+esc(baslik)+'</div></div><div class="key">' +
+    anahtar = '<div class="pagebreak"></div><div class="hd"><h1>Cevap Anahtarı</h1><div class="sub">'+esc(o.baslik)+'</div></div><div class="key">' +
       secilen.map(x => { i++; return '<span class="ki"><b>'+i+'.</b> '+esc(x.q.correct)+'</span>'; }).join("") + '</div>' +
       (secilen.some(x=>x.q.solution) ? '<h2 style="margin-top:16px">Çözümler</h2>' +
         secilen.map((x,j) => x.q.solution ? '<div class="sol"><b>'+(j+1)+'.</b> '+esc(x.q.solution)+'</div>' : "").join("") : "");
   }
   const w = window.open("", "_blank");
   if (!w) { alert("Pop-up iznini aç."); return; }
-  w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>'+esc(baslik)+'</title><style>'+
+  w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>'+esc(o.baslik)+'</title><style>'+
    '@page{size:A4;margin:12mm 10mm}'+
    'body{font-family:"Times New Roman",Georgia,serif;color:#000;margin:0;line-height:1.35;font-size:10.5pt}'+
    '.hd{border-bottom:2.5px solid #000;padding-bottom:5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-end}'+
    'h1{font-size:14pt;margin:0;letter-spacing:.5px;text-transform:uppercase}'+
    '.sub{font-size:8.5pt;text-align:right;line-height:1.35}'+
-   '.gov{column-count:'+sutun+';column-gap:8mm;'+(sutun>1?'column-rule:0.6px solid #999;':'')+'}'+
+   '.gov{column-count:'+(o.sutun||2)+';column-gap:8mm;'+((o.sutun||2)>1?'column-rule:0.6px solid #999;':'')+'}'+
    'h2{font-size:9.5pt;margin:8px 0 4px;padding:2px 6px;background:#eee;border-left:3px solid #000;break-after:avoid;break-inside:avoid;text-transform:uppercase;letter-spacing:.3px}'+
    '.q{break-inside:avoid;page-break-inside:avoid;margin:0 0 9px;padding-left:16px;position:relative;text-align:justify}'+
    '.qn{position:absolute;left:0;top:0;font-weight:bold}'+
-   '.qs{margin-bottom:3px}'+
-   '.opts{margin-top:2px}.opt{margin:1px 0;padding-left:4px}'+
+   '.qs{margin-bottom:3px}.opts{margin-top:2px}.opt{margin:1px 0;padding-left:4px}'+
    '.qimg{max-width:100%;max-height:70mm;display:block;margin:3px auto;break-inside:avoid}'+
-   '.key{column-count:1;display:grid;grid-template-columns:repeat(10,1fr);gap:4px;font-size:10pt;border:1px solid #000;padding:8px}'+
-   '.ki{white-space:nowrap}'+
-   '.sol{font-size:9pt;margin:3px 0;break-inside:avoid;color:#333}'+
+   '.key{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;font-size:10pt;border:1px solid #000;padding:8px}'+
+   '.ki{white-space:nowrap}.sol{font-size:9pt;margin:3px 0;break-inside:avoid;color:#333}'+
    '.pagebreak{break-before:page;page-break-before:always}'+
    '.ftr{margin-top:6px;border-top:1px solid #999;padding-top:3px;font-size:7.5pt;color:#555;text-align:center}'+
    '</style></head><body>'+
-   '<div class="hd"><h1>'+esc(baslik)+'</h1><div class="sub">'+(st?'<b>'+esc(st.name)+'</b>'+(st.sinif?' · '+esc(st.sinif):'')+'<br>':'')+
-     bugun+' · '+n+' soru</div></div>'+
+   '<div class="hd"><h1>'+esc(o.ustBaslik || o.baslik)+'</h1><div class="sub">'+
+     (st?'<b>'+esc(st.name)+'</b>'+(st.sinif?' · '+esc(st.sinif):'')+'<br>':'')+bugun+' · '+n+' soru</div></div>'+
    '<div class="gov">'+body+'</div>'+
-   '<div class="ftr">Bu set, öğrencinin konu bazlı teşhis sonuçlarına göre hazırlanmıştır.</div>'+
+   '<div class="ftr">'+esc(o.altNot || "Bu set, öğrencinin konu bazlı teşhis sonuçlarına göre hazırlanmıştır.")+'</div>'+
    anahtar+
    '<script>window.onload=function(){setTimeout(function(){window.print()},700)}<\/script></body></html>');
   w.document.close();
+}
+
+function sePdf(secilen, sid){
+  const st = STUDENTS.find(x=>x.id===sid);
+  osymPdf(secilen, {
+    baslik: ($("se-baslik").value||"").trim() || otoBaslik(secilen),
+    st, cevapli: $("se-cevapli").checked,
+    sutun: +$("se-duzen").value, grupla: $("se-sira").value === "konu"
+  });
 }
 $("se-ata").onclick = async () => {
   if (!SE.son || !SE.son.sid) return;
@@ -1619,6 +1630,15 @@ $("kt-ogrenci").onchange = async () => {
     : "Zayıf konu yok ya da veri girilmemiş.";
   $("kt-olustur").disabled = !KT.zayif.length;
 };
+/* Otomatik kitapçık başlığı: "Caner AYT-2" — o öğrenciye kaçıncı kitapçık olduğunu sayar */
+async function otoKitapcikBaslik(sid, secilen){
+  const st = STUDENTS.find(x=>x.id===sid);
+  const ad = (st?.name || "Öğrenci").split(" ")[0];        // ilk ad
+  const secs = [...new Set(secilen.map(x=>x.t.section))];
+  const bolum = secs.length === 1 ? secs[0] : "MAT";        // TYT / AYT / karışıksa MAT
+  const { count } = await sb.from("booklets").select("id", { count:"exact", head:true }).eq("student_id", sid);
+  return ad + " " + bolum + "-" + ((count || 0) + 1);
+}
 $("kt-olustur").onclick = async () => {
   const sid = $("kt-ogrenci").value, perT = +$("kt-adet").value;
   $("kt-msg").innerHTML = '<span class="muted">Havuzdan seçiliyor…</span>'; $("kt-olustur").disabled = true;
@@ -1629,30 +1649,50 @@ $("kt-olustur").onclick = async () => {
     for (const w of KT.zayif) {
       const diff = w.s < .40 ? ["temel","kolay"] : ["orta"];
       const { data: qs } = await sb.from("questions").select("*")
-        .eq("topic_id", w.t.id).eq("status","dogrulandi").in("difficulty",diff).limit(20);
-      const uygun = (qs||[]).filter(q=>!usedSet.has(q.id)).slice(0, perT);
+        .eq("topic_id", w.t.id).eq("status","dogrulandi").in("difficulty",diff).limit(30);
+      const havuz = (qs||[]).filter(q=>!usedSet.has(q.id));
+      for (let i=havuz.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [havuz[i],havuz[j]]=[havuz[j],havuz[i]]; }
+      const uygun = havuz.slice(0, perT);
       if (uygun.length < perT) eksik.push(w.t.name+" ("+uygun.length+"/"+perT+")");
-      uygun.forEach(q => secilen.push({ q }));
+      uygun.forEach(q => secilen.push({ t: w.t, q }));
     }
-    if (!secilen.length) { $("kt-msg").innerHTML = '<div class="err">Havuzda uygun doğrulanmış soru yok. Önce Havuz sekmesinden ekle/onayla.'+(eksik.length?"<br>Eksik: "+esc(eksik.join(", ")):"")+'</div>'; $("kt-olustur").disabled=false; return; }
+    if (!secilen.length) { $("kt-msg").innerHTML = '<div class="err">Havuzda uygun onaylı soru yok. Önce Havuz sekmesinden ekle/onayla.'+(eksik.length?"<br>Eksik: "+esc(eksik.join(", ")):"")+'</div>'; $("kt-olustur").disabled=false; return; }
+
+    const baslik = ($("kt-baslik").value||"").trim() || await otoKitapcikBaslik(sid, secilen);
     const { data: bk, error: bErr } = await sb.from("booklets")
-      .insert({ student_id:sid, title:"Tekrar Kitapçığı — " + new Date().toLocaleDateString("tr-TR") }).select().single();
+      .insert({ student_id:sid, title: baslik }).select().single();
     if (bErr) throw bErr;
     const items = secilen.map((x,i)=>({ booklet_id:bk.id, question_id:x.q.id, topic_id:x.q.topic_id,
-      qtype:x.q.qtype, difficulty:x.q.difficulty, stem:x.q.stem, options:x.q.options, correct:x.q.correct, solution:x.q.solution, image_url:x.q.image_url, ord:i }));
+      qtype:x.q.qtype, difficulty:x.q.difficulty, stem:x.q.stem, options:x.q.options,
+      correct:x.q.correct, solution:x.q.solution, image_url:x.q.image_url, ord:i }));
     await sb.from("booklet_items").insert(items);
     await sb.from("question_usage").upsert(secilen.map(x=>({ question_id:x.q.id, student_id:sid, context:bk.id })),
       { onConflict:"question_id,student_id", ignoreDuplicates:true });
+
     const st = STUDENTS.find(s=>s.id===sid);
-    $("kt-msg").innerHTML = '<div class="ok">Kitapçık atandı: '+items.length+' soru. Öğrenci portalında görünür.'+
+    const secs = [...new Set(secilen.map(x=>x.t.section))];
+    const ustBaslik = (secs.length===1 ? secs[0]+" Matematik" : "Matematik") + " — Tekrar Kitapçığı";
+    KT.son = { secilen, st, baslik, ustBaslik };
+    $("kt-msg").innerHTML = '<div class="ok"><b>'+esc(baslik)+'</b> oluşturuldu: '+items.length+' soru. Öğrenci portalında görünür.'+
       (eksik.length?'<br><span class="err">Havuz yetersiz kalan konular: '+esc(eksik.join(", "))+'</span>':"")+'</div>';
-    $("kt-onizleme").innerHTML = '<div class="card"><div class="no-print" style="text-align:right"><button class="ghost" onclick="window.print()">Yazdır / PDF</button></div>'+
-      '<h1 style="font-size:16px">Tekrar Kitapçığı — '+esc(st?.name||"")+'</h1>'+
-      items.map((it,i)=>{ const opts = ["A","B","C","D","E"].map(L=>it.options?.[L]!=null?'<div><b>'+L+')</b> '+esc(it.options[L])+'</div>':"").join("");
-        const img = it.image_url ? '<img src="'+esc(it.image_url)+'" style="max-width:100%;max-height:300px;border-radius:8px;margin:4px 0" />' : "";
-        return '<div class="qbox"><div style="white-space:pre-wrap"><b>'+(i+1)+'.</b> '+esc(it.stem)+'</div>'+img+'<div class="opts">'+opts+'</div>'+
-          '<div class="muted no-print" style="margin-top:4px">Cevap: <b>'+esc(it.correct)+'</b>'+(it.solution?' — '+esc(it.solution):"")+'</div></div>'; }).join("")+'</div>';
-  } catch(e){ $("kt-msg").innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+    $("kt-onizleme").innerHTML = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
+      '<div><b style="font-size:15px">'+esc(baslik)+'</b><div class="muted" style="font-size:12px">'+items.length+' soru · '+esc(st?.name||"")+(st?.sinif?" · "+esc(st.sinif):"")+'</div></div>'+
+      '<div style="display:flex;gap:8px"><button id="kt-pdf">📄 Öğrenci PDF (ÖSYM)</button>'+
+      '<button class="ghost" id="kt-pdf-cevapli">Cevaplı (öğretmen)</button></div></div>'+
+      '<div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">'+
+      items.map((it,i)=>{ const img = it.image_url ? '<img src="'+esc(it.image_url)+'" style="max-width:100%;max-height:150px;border-radius:6px" />' : "";
+        return '<div class="qbox" style="padding:8px;font-size:12px"><b>'+(i+1)+'.</b> '+esc((it.stem||"").slice(0,90))+(it.stem&&it.stem.length>90?"…":"")+img+
+          '<div class="muted" style="margin-top:4px">Cevap: <b>'+esc(it.correct)+'</b> · '+esc(it.difficulty)+'</div></div>'; }).join("")+
+      '</div></div>';
+    $("kt-pdf").onclick = () => osymPdf(KT.son.secilen, { baslik: KT.son.baslik, ustBaslik: KT.son.ustBaslik,
+      st: KT.son.st, cevapli: false, sutun: +$("kt-duzen").value, grupla: true,
+      altNot: KT.son.baslik + " — teşhis sonuçlarına göre hazırlanmıştır." });
+    $("kt-pdf-cevapli").onclick = () => osymPdf(KT.son.secilen, { baslik: KT.son.baslik, ustBaslik: KT.son.ustBaslik,
+      st: KT.son.st, cevapli: true, sutun: +$("kt-duzen").value, grupla: true,
+      altNot: KT.son.baslik + " — ÖĞRETMEN KOPYASI" });
+    // istenirse hemen yazdır
+    if ($("kt-cevapli").checked) $("kt-pdf-cevapli").click(); else $("kt-pdf").click();
+  } catch(e){ $("kt-msg").innerHTML = '<div class="err">'+esc(e.message||e)+'</div>'; }
   $("kt-olustur").disabled = false;
 };
 
