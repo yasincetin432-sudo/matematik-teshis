@@ -321,6 +321,7 @@
         <div><label>Konu başına soru</label><select id="se-adet"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option><option>12</option><option>15</option><option>20</option></select></div>
         <div><label>Sıralama</label><select id="se-sira"><option value="konu">Konuya göre grupla</option><option value="karisik">Karışık</option></select></div>
         <div><label>Düzen</label><select id="se-duzen"><option value="2" selected>2 sütun (ÖSYM tarzı)</option><option value="1">Tek sütun</option></select></div>
+        <div><label>Sorular arası boşluk</label><select id="se-bosluk"><option value="4">Yok — kompakt (kâğıt tasarrufu)</option><option value="15">Az — 15 mm</option><option value="25" selected>Orta — 25 mm</option><option value="35">Çok — 35 mm</option><option value="50">Çözüm alanı — 50 mm</option><option value="80">Geniş çözüm — 80 mm</option></select></div>
       </div>
       <div class="row" style="margin-top:4px">
         <div style="flex:2"><label>PDF başlığı (boş bırakırsan otomatik yazılır)</label><input id="se-baslik" placeholder="ör. AYT Matematik — Trigonometri" /></div>
@@ -368,6 +369,7 @@
         <div><label>Öğrenci</label><select id="kt-ogrenci"></select></div>
         <div><label>Konu başına soru</label><select id="kt-adet"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select></div>
         <div><label>Düzen</label><select id="kt-duzen"><option value="2" selected>2 sütun (ÖSYM tarzı)</option><option value="1">Tek sütun</option></select></div>
+        <div><label>Sorular arası boşluk</label><select id="kt-bosluk"><option value="4">Yok — kompakt (kâğıt tasarrufu)</option><option value="15">Az — 15 mm</option><option value="25" selected>Orta — 25 mm</option><option value="35">Çok — 35 mm</option><option value="50">Çözüm alanı — 50 mm</option><option value="80">Geniş çözüm — 80 mm</option></select></div>
         <div style="flex:0"><button id="kt-olustur" disabled style="padding:11px 18px">Kitapçık oluştur ve ata</button></div>
       </div>
       <div class="row" style="margin-top:4px">
@@ -1573,7 +1575,7 @@ function osymPdf(secilen, o){
    '.sub{font-size:8.5pt;text-align:right;line-height:1.35}'+
    '.gov{column-count:'+(o.sutun||2)+';column-gap:8mm;'+((o.sutun||2)>1?'column-rule:0.6px solid #999;':'')+'}'+
    'h2{font-size:9.5pt;margin:8px 0 4px;padding:2px 6px;background:#eee;border-left:3px solid #000;break-after:avoid;break-inside:avoid;text-transform:uppercase;letter-spacing:.3px}'+
-   '.q{break-inside:avoid;page-break-inside:avoid;margin:0 0 9px;padding-left:16px;position:relative;text-align:justify}'+
+   '.q{break-inside:avoid;page-break-inside:avoid;margin:0 0 '+(o.bosluk||4)+'mm;padding-left:16px;position:relative;text-align:justify}'+
    '.qn{position:absolute;left:0;top:0;font-weight:bold}'+
    '.qs{margin-bottom:3px}.opts{margin-top:2px}.opt{margin:1px 0;padding-left:4px}'+
    '.qimg{max-width:100%;max-height:70mm;display:block;margin:3px auto;break-inside:avoid}'+
@@ -1596,7 +1598,8 @@ function sePdf(secilen, sid){
   osymPdf(secilen, {
     baslik: ($("se-baslik").value||"").trim() || otoBaslik(secilen),
     st, cevapli: $("se-cevapli").checked,
-    sutun: +$("se-duzen").value, grupla: $("se-sira").value === "konu"
+    sutun: +$("se-duzen").value, grupla: $("se-sira").value === "konu",
+    bosluk: +$("se-bosluk").value
   });
 }
 $("se-ata").onclick = async () => {
@@ -1685,10 +1688,10 @@ $("kt-olustur").onclick = async () => {
           '<div class="muted" style="margin-top:4px">Cevap: <b>'+esc(it.correct)+'</b> · '+esc(it.difficulty)+'</div></div>'; }).join("")+
       '</div></div>';
     $("kt-pdf").onclick = () => osymPdf(KT.son.secilen, { baslik: KT.son.baslik, ustBaslik: KT.son.ustBaslik,
-      st: KT.son.st, cevapli: false, sutun: +$("kt-duzen").value, grupla: true,
+      st: KT.son.st, cevapli: false, sutun: +$("kt-duzen").value, grupla: true, bosluk: +$("kt-bosluk").value,
       altNot: KT.son.baslik + " — teşhis sonuçlarına göre hazırlanmıştır." });
     $("kt-pdf-cevapli").onclick = () => osymPdf(KT.son.secilen, { baslik: KT.son.baslik, ustBaslik: KT.son.ustBaslik,
-      st: KT.son.st, cevapli: true, sutun: +$("kt-duzen").value, grupla: true,
+      st: KT.son.st, cevapli: true, sutun: +$("kt-duzen").value, grupla: true, bosluk: 4,
       altNot: KT.son.baslik + " — ÖĞRETMEN KOPYASI" });
     // istenirse hemen yazdır
     if ($("kt-cevapli").checked) $("kt-pdf-cevapli").click(); else $("kt-pdf").click();
