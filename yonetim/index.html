@@ -244,7 +244,7 @@
           <button class="ghost" id="kp-onceki" style="padding:5px 10px;font-size:12px">‹ Önceki</button>
           <span id="kp-sayfa" class="chip">–</span>
           <button class="ghost" id="kp-sonraki" style="padding:5px 10px;font-size:12px">Sonraki ›</button>
-          <button id="kp-bol" style="padding:5px 12px;font-size:12px">⚡ Böl ve önizle</button><button id="kp-uygula" class="hide" style="padding:5px 12px;font-size:12px;background:#059669">✓ Bu bölmeyi uygula</button><span id="kp-olcek" class="muted" style="font-size:11px"></span>
+          <button id="kp-bol" style="padding:5px 12px;font-size:12px">⚡ Böl ve önizle</button><label id="kp-tumu-kutu" class="hide" style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;background:#f1f5f9;padding:5px 10px;border-radius:8px"><input type="checkbox" id="kp-tumu" checked style="width:auto"> Tümünü seç</label><button id="kp-uygula" class="hide" style="padding:5px 12px;font-size:12px;background:#059669">✓ Seçilileri uygula</button><span id="kp-olcek" class="muted" style="font-size:11px"></span>
           <span class="muted" style="font-size:12px">veya görüntü üzerine <b>fareyle sürükleyerek</b> kutu çiz</span>
         </div>
         <div style="overflow:auto;max-height:520px;border:1px solid var(--bd);border-radius:8px;background:#f8fafc;position:relative;display:inline-block">
@@ -253,10 +253,19 @@
         </div>
       </div>
       <div id="kp-liste" style="margin-top:10px"></div>
-      <div id="kp-alt" class="hide" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div id="kp-alt" class="hide" style="margin-top:10px">
+        <div style="background:#f8fafc;border:1px solid var(--bd);border-radius:10px;padding:8px 10px;margin-bottom:8px;display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+          <div style="flex:2;min-width:220px"><label style="margin-top:0">Cevap anahtarı (sırayla, virgülle)</label>
+            <input id="kp-anahtar" placeholder="A,D,D,E,C,E,E,D" /></div>
+          <div style="flex:0"><button class="ghost" id="kp-anahtar-uygula" style="padding:9px 12px;font-size:13px">Dağıt</button></div>
+          <div style="flex:0"><label style="margin-top:0">Hepsine düzey</label>
+            <select id="kp-topludz" style="width:auto"><option value="">—</option><option>temel</option><option>kolay</option><option>orta</option><option>zor</option></select></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button id="kp-ekle" style="padding:11px 20px">Seçilenleri havuza ekle</button>
         <button class="ghost" id="kp-temizle">Listeyi temizle</button>
         <span id="kp-msg"></span>
+        </div>
       </div>
     </div>
 
@@ -1184,66 +1193,94 @@ $("kp-bol").onclick = () => {
     bloklar.forEach(([a,b]) => {
       if (b - a < enAz) return;
       const pad = Math.round(0.15 * PX_PER_CM());
-      KP.oneri.push({ x:x0, y:Math.max(0,a-pad), w:gen, h:Math.min(H,b+pad)-Math.max(0,a-pad) });
+      KP.oneri.push({ x:x0, y:Math.max(0,a-pad), w:gen, h:Math.min(H,b+pad)-Math.max(0,a-pad), sec:true });
     });
   }
   kpOnizle();
   if (KP.oneri.length) {
     $("kp-uygula").classList.remove("hide");
-    $("kp-msg").innerHTML = '<span class="ok">'+KP.oneri.length+' soru bulundu (mor kutular). Doğruysa "Bu bölmeyi uygula"ya bas.</span>' +
-      '<div class="muted" style="font-size:12px">Fazla parçalandıysa <b>ayırıcı boşluğu artır</b>; sorular birleştiyse <b>azalt</b>, sonra tekrar böl.</div>';
+    $("kp-tumu-kutu").classList.remove("hide");
+    $("kp-tumu").checked = true;
+    kpSayacGuncelle();
+    $("kp-msg").innerHTML = '<span class="ok">'+KP.oneri.length+' aday bulundu.</span>' +
+      '<div class="muted" style="font-size:12px">İstemediğin kutuya <b>tıklayarak</b> seçimden çıkar (başlık, cevap anahtarı, sayfa no gibi). ' +
+      'Fazla parçalandıysa <b>ayırıcı boşluğu artır</b>; sorular birleştiyse <b>azalt</b>.</div>';
   } else {
     $("kp-uygula").classList.add("hide");
+    $("kp-tumu-kutu").classList.add("hide");
     $("kp-msg").innerHTML = '<span class="err">Bölünemedi. Boşluk değerini küçült ya da fareyle kutu çiz.</span>';
   }
 };
 function kpOnizle(){
-  const c = KP.canvas, ctx = KP.ctx;
+  const ctx = KP.ctx;
   ctx.drawImage(KP.temiz, 0, 0);
   ctx.save();
   KP.oneri.forEach((r,i) => {
-    ctx.strokeStyle = "#6d28d9"; ctx.lineWidth = 2; ctx.setLineDash([6,4]);
+    const on = r.sec;
+    ctx.strokeStyle = on ? "#6d28d9" : "#94a3b8";
+    ctx.lineWidth = on ? 2 : 1;
+    ctx.setLineDash(on ? [] : [5,4]);
     ctx.strokeRect(r.x+1, r.y, r.w-2, r.h);
+    if (!on) { ctx.fillStyle = "rgba(148,163,184,.18)"; ctx.fillRect(r.x+1, r.y, r.w-2, r.h); }
     ctx.setLineDash([]);
-    ctx.fillStyle = "rgba(109,40,217,.85)";
-    ctx.fillRect(r.x+3, r.y+3, 26, 18);
+    ctx.fillStyle = on ? "rgba(109,40,217,.9)" : "rgba(148,163,184,.9)";
+    ctx.fillRect(r.x+3, r.y+3, 30, 19);
     ctx.fillStyle = "#fff"; ctx.font = "bold 12px sans-serif";
-    ctx.fillText(String(i+1), r.x+10, r.y+16);
+    ctx.fillText((on ? "✓" : "✕") + (i+1), r.x+7, r.y+17);
   });
   ctx.restore();
 }
+function kpSayacGuncelle(){
+  const n = KP.oneri.filter(r=>r.sec).length;
+  $("kp-uygula").textContent = "✓ Seçili " + n + " kutuyu uygula";
+  $("kp-uygula").disabled = !n;
+}
+$("kp-tumu").onchange = (e) => {
+  KP.oneri.forEach(r => r.sec = e.target.checked);
+  kpOnizle(); kpSayacGuncelle();
+};
 $("kp-uygula").onclick = () => {
-  KP.oneri.forEach(r => kpAday(r.x, r.y, r.w, r.h));
-  KP.oneri = []; $("kp-uygula").classList.add("hide");
+  KP.oneri.filter(r=>r.sec).forEach(r => kpAday(r.x, r.y, r.w, r.h));
+  KP.oneri = []; $("kp-uygula").classList.add("hide"); $("kp-tumu-kutu").classList.add("hide");
   KP.ctx.drawImage(KP.temiz, 0, 0);
   $("kp-msg").innerHTML = '<span class="ok">Aday listeye eklendi — aşağıdan düzey ve cevapları işaretle.</span>';
 };
 ["kp-bosluk","kp-minh","kp-sutun"].forEach(id => { const e = $(id); if (e) e.onchange = () => { if (KP.oneri.length) $("kp-bol").click(); }; });
 
-/* --- fareyle kutu çizme --- */
+/* --- fareyle: kısa tıklama = kutu seç/bırak, sürükleme = yeni kutu çiz --- */
 (function(){
   const c = document.getElementById("kp-canvas"), kutu = document.getElementById("kp-secim");
   let bas = null;
+  const oran = () => { const r = c.getBoundingClientRect(); return { rx: c.width / r.width, ry: c.height / r.height, r }; };
   c.addEventListener("mousedown", (e) => {
-    const r = c.getBoundingClientRect();
+    const { r } = oran();
     bas = { x: e.clientX - r.left, y: e.clientY - r.top };
     kutu.style.display = "block"; kutu.style.left = (c.offsetLeft+bas.x)+"px"; kutu.style.top = (c.offsetTop+bas.y)+"px";
     kutu.style.width = "0px"; kutu.style.height = "0px";
   });
   c.addEventListener("mousemove", (e) => {
     if (!bas) return;
-    const r = c.getBoundingClientRect();
+    const { r } = oran();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     kutu.style.left = (c.offsetLeft+Math.min(bas.x,x))+"px"; kutu.style.top = (c.offsetTop+Math.min(bas.y,y))+"px";
     kutu.style.width = Math.abs(x-bas.x)+"px"; kutu.style.height = Math.abs(y-bas.y)+"px";
   });
   c.addEventListener("mouseup", (e) => {
     if (!bas) return;
-    const r = c.getBoundingClientRect();
+    const { rx, ry, r } = oran();
     const x = e.clientX - r.left, y = e.clientY - r.top;
-    const sx = Math.min(bas.x,x), sy = Math.min(bas.y,y), w = Math.abs(x-bas.x), h = Math.abs(y-bas.y);
+    const w = Math.abs(x-bas.x), h = Math.abs(y-bas.y);
+    const sx = Math.min(bas.x,x), sy = Math.min(bas.y,y);
     bas = null; kutu.style.display = "none";
-    if (w > 30 && h > 30) kpAday(sx*(c.width/r.width), sy*(c.height/r.height), w*(c.width/r.width), h*(c.height/r.height));
+    if (w < 6 && h < 6) {                       // KISA TIKLAMA → önizleme kutusunu seç/bırak
+      if (!KP.oneri.length) return;
+      const px = x*rx, py = y*ry;
+      const hit = KP.oneri.find(o => px>=o.x && px<=o.x+o.w && py>=o.y && py<=o.y+o.h);
+      if (hit) { hit.sec = !hit.sec; kpOnizle(); kpSayacGuncelle();
+        $("kp-tumu").checked = KP.oneri.every(o=>o.sec); }
+      return;
+    }
+    if (w > 30 && h > 30) kpAday(sx*rx, sy*ry, w*rx, h*ry);  // SÜRÜKLEME → yeni kutu
   });
 })();
 
@@ -1293,6 +1330,23 @@ function kpListeCiz(){
 }
 window.kpSil = (id) => { KP.adaylar = KP.adaylar.filter(a=>a.id!==id); kpListeCiz(); };
 $("kp-temizle").onclick = () => { KP.adaylar = []; kpListeCiz(); $("kp-msg").textContent = ""; };
+$("kp-anahtar-uygula").onclick = () => {
+  const harfler = ($("kp-anahtar").value||"").toUpperCase().replace(/[^A-E]/g,"").split("");
+  if (!harfler.length) { $("kp-msg").innerHTML = '<span class="err">Cevap anahtarı boş (ör. A,D,D,E).</span>'; return; }
+  let n = 0;
+  KP.adaylar.forEach((a,i) => { if (harfler[i]) { const sel = $(a.id+"-c"); if (sel) { sel.value = harfler[i]; n++; } } });
+  $("kp-msg").innerHTML = '<span class="ok">'+n+' soruya cevap dağıtıldı.</span>' +
+    (harfler.length < KP.adaylar.length ? ' <span class="muted">Son '+(KP.adaylar.length-harfler.length)+' soru boş kaldı.</span>' : "");
+};
+$("kp-topludz").onchange = (e) => {
+  const d = e.target.value; if (!d) return;
+  KP.adaylar.forEach(a => {
+    const r = document.querySelector('input[name="'+a.id+'-d"][value="'+d+'"]');
+    if (r) { r.checked = true; r.dispatchEvent(new Event("change")); }
+  });
+  e.target.value = "";
+  $("kp-msg").innerHTML = '<span class="ok">Tüm adaylara "'+d+'" düzeyi uygulandı.</span>';
+};
 
 function dataUrlToBlob(d){
   const [b, veri] = d.split(","); const mime = b.match(/:(.*?);/)[1];
