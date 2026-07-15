@@ -62,6 +62,7 @@
     <div class="tab on" data-t="ogr">Öğrenciler</div>
     <div class="tab" data-t="den">Denemeler</div>
     <div class="tab" data-t="veri">Veri Girişi</div>
+    <div class="tab" data-t="gon">Gönderiler <span id="gn-rozet" class="chip hide" style="background:#fef3c7;color:#92400e;margin-left:4px">0</span></div>
     <div class="tab" data-t="tes">Teşhis &amp; Rapor</div>
     <div class="tab" data-t="hav">Soru Havuzu</div>
     <div class="tab" data-t="set">Soru Seti PDF</div>
@@ -148,6 +149,25 @@
       </div>
       <div id="vr-tablo" style="margin-top:12px"></div>
       <div class="no-print" style="margin-top:10px"><button id="vr-kaydet" disabled>Kaydet</button> <span id="vr-msg"></span></div>
+    </div>
+  </div>
+
+  <!-- ÖĞRENCİ GÖNDERİLERİ (Veri Girişi altında) -->
+  <div id="p-gon" class="hide">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h1 style="font-size:16px;margin:0">Öğrenci gönderileri</h1>
+        <select id="gn-durum" style="width:auto;padding:5px 10px;font-size:13px">
+          <option value="bekliyor">Onay bekleyen</option>
+          <option value="onaylandi">Onaylanan</option>
+          <option value="reddedildi">Reddedilen</option>
+        </select>
+        <button class="ghost" id="gn-yenile" style="padding:5px 12px;font-size:12px">Yenile</button>
+        <span id="gn-sayi" class="muted" style="font-size:12px"></span>
+      </div>
+      <p class="muted">Öğrencilerin kendi girdiği deneme sonuçları. <b>Onaylamadan teşhise işlenmez.</b>
+      Kontrol et; gerekirse değerleri düzeltip onayla.</p>
+      <div id="gn-liste" class="muted">—</div>
     </div>
   </div>
 
@@ -374,6 +394,7 @@
       </div>
       <div class="row" style="margin-top:4px">
         <div style="flex:2"><label>Başlık (boş bırakırsan otomatik: "Caner AYT-2" gibi numaralandırılır)</label><input id="kt-baslik" placeholder="otomatik" /></div>
+        <div style="max-width:180px"><label>Kategori (portalda)</label><select id="kt-kategori"><option value="">otomatik</option><option value="TYT">TYT</option><option value="AYT">AYT</option><option value="konu">Konu denemesi</option></select></div>
         <div style="flex:0"><label style="margin-top:16px;display:flex;align-items:center;gap:6px;font-size:13px;color:#0f172a;cursor:pointer"><input type="checkbox" id="kt-cevapli" style="width:auto"> Cevap anahtarı ekle (öğretmen kopyası)</label></div>
       </div>
       <p class="muted">Zayıf konulara (&lt;%65) havuzdan <b>doğrulanmış</b> ve bu öğrenciye daha önce verilmemiş sorular seçilir.</p>
@@ -449,11 +470,11 @@ async function boot(){
   fillTopicSelects();
   seKonularCiz();
   await Promise.all([loadStudents(), loadExams()]);
-  loadPool();
+  loadPool(); gnYukle(); gnRozet();
 }
 function showTab(k){
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x.dataset.t === k));
-  ["ogr","den","veri","tes","hav","set","kit"].forEach(p => $("p-"+p).classList.toggle("hide", p !== k));
+  ["ogr","den","veri","gon","tes","hav","set","kit"].forEach(p => $("p-"+p).classList.toggle("hide", p !== k));
 }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => showTab(t.dataset.t));
 
@@ -679,6 +700,68 @@ $("vr-kaydet").onclick = async () => {
   const { error } = await sb.from("results").upsert(rows, { onConflict: "student_id,exam_id,topic_id" });
   $("vr-msg").innerHTML = error ? '<span class="err">'+esc(error.message)+'</span>'
     : '<span class="ok">Kaydedildi — '+rows.length+' konu ölçüldü ('+rows.reduce((a,r)=>a+r.count,0)+' soru).</span>';
+};
+
+/* ================= ÖĞRENCİ GÖNDERİLERİ ================= */
+async function gnYukle(){
+  const { data, error } = await sb.from("submissions").select("*").eq("status", $("gn-durum").value)
+    .order("created_at", { ascending:false }).limit(60);
+  if (error) { $("gn-liste").innerHTML = '<div class="err">'+esc(error.message)+'<br><span class="muted">guncelleme-5.sql çalıştırıldı mı?</span></div>'; return; }
+  const list = data || [];
+  $("gn-sayi").textContent = list.length + " gönderi";
+  $("gn-liste").innerHTML = list.length ? list.map(sub => {
+    const st = STUDENTS.find(x=>x.id===sub.student_id);
+    const ex = EXAMS.find(x=>x.id===sub.exam_id);
+    const p = sub.payload || [];
+    const toplam = p.reduce((a,r)=>a+(+r.d||0)+(+r.y||0)+(+r.b||0),0);
+    const dogru = p.reduce((a,r)=>a+(+r.d||0),0), yanlis = p.reduce((a,r)=>a+(+r.y||0),0);
+    const net = (dogru - yanlis/4).toFixed(2);
+    return '<div class="qbox">'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'+
+        '<b>'+esc(st?.name||"—")+'</b>'+(st?.sinif?'<span class="chip">'+esc(st.sinif)+'</span>':"")+
+        '<span class="chip">'+esc(ex?.name||"—")+'</span>'+
+        '<span class="chip">'+p.length+' konu · '+toplam+' soru · net '+net+'</span>'+
+        '<span class="muted" style="font-size:11px;margin-left:auto">'+new Date(sub.created_at).toLocaleString("tr-TR")+'</span>'+
+      '</div>'+
+      '<div style="overflow-x:auto"><table><tr><th>Konu</th><th>D</th><th>Y</th><th>B</th></tr>'+
+      p.map(r => { const t = topicById(r.topic_id); return '<tr><td>'+esc(t?.name||r.topic_id)+'</td>'+
+        '<td><input type="number" min="0" id="gn-d-'+sub.id+'-'+r.topic_id+'" value="'+(+r.d||0)+'" style="width:52px;padding:4px;text-align:center"/></td>'+
+        '<td><input type="number" min="0" id="gn-y-'+sub.id+'-'+r.topic_id+'" value="'+(+r.y||0)+'" style="width:52px;padding:4px;text-align:center"/></td>'+
+        '<td><input type="number" min="0" id="gn-b-'+sub.id+'-'+r.topic_id+'" value="'+(+r.b||0)+'" style="width:52px;padding:4px;text-align:center"/></td></tr>'; }).join("")+
+      '</table></div>'+
+      (sub.status==="bekliyor" ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+
+        '<button style="padding:6px 14px;font-size:13px" onclick="gnOnayla(\''+sub.id+'\')">✓ Onayla ve teşhise işle</button>'+
+        '<button class="warn" style="padding:6px 12px;font-size:13px" onclick="gnReddet(\''+sub.id+'\')">Reddet</button></div>' :
+        '<div class="muted" style="margin-top:6px">Durum: '+esc(sub.status)+(sub.note?' · '+esc(sub.note):"")+'</div>')+
+      '</div>';
+  }).join("") : "Bu durumda gönderi yok.";
+}
+$("gn-durum").onchange = gnYukle;
+$("gn-yenile").onclick = gnYukle;
+async function gnRozet(){
+  const { count } = await sb.from("submissions").select("id", { count:"exact", head:true }).eq("status","bekliyor");
+  const r = $("gn-rozet");
+  if (count > 0) { r.textContent = count; r.classList.remove("hide"); } else r.classList.add("hide");
+}
+window.gnOnayla = async (subId) => {
+  const { data: sub } = await sb.from("submissions").select("*").eq("id", subId).single();
+  if (!sub) return;
+  const rows = (sub.payload||[]).map(r => {
+    const g = (p) => Math.max(0, parseInt(($(p+subId+"-"+r.topic_id)||{}).value||"0")||0);
+    const d = g("gn-d-"), y = g("gn-y-"), b = g("gn-b-");
+    return { student_id: sub.student_id, exam_id: sub.exam_id, topic_id: r.topic_id, count: d+y+b, wrong: y, blank: b };
+  }).filter(r => r.count > 0);
+  if (!rows.length) { alert("Kaydedilecek veri yok."); return; }
+  const { error } = await sb.from("results").upsert(rows, { onConflict: "student_id,exam_id,topic_id" });
+  if (error) { alert("İşlenemedi: " + error.message); return; }
+  await sb.from("submissions").update({ status:"onaylandi", reviewed_at: new Date().toISOString() }).eq("id", subId);
+  gnYukle(); gnRozet();
+};
+window.gnReddet = async (subId) => {
+  const not = prompt("Reddetme sebebi (öğrenci görecek):", "Karne ile uyuşmuyor, tekrar gönder.");
+  if (not === null) return;
+  await sb.from("submissions").update({ status:"reddedildi", note: not, reviewed_at: new Date().toISOString() }).eq("id", subId);
+  gnYukle(); gnRozet();
 };
 
 /* ---- teşhis + rapor ---- */
@@ -1608,7 +1691,8 @@ $("se-ata").onclick = async () => {
   $("se-ata").disabled = true;
   try {
     const { data: bk, error: bErr } = await sb.from("booklets")
-      .insert({ student_id: sid, title: "Soru Seti — " + new Date().toLocaleDateString("tr-TR") }).select().single();
+      .insert({ student_id: sid, title: (($("se-baslik").value||"").trim() || otoBaslik(secilen)),
+                kategori: otoKategori(secilen) }).select().single();
     if (bErr) throw bErr;
     const items = secilen.map((x,i)=>({ booklet_id:bk.id, question_id:x.q.id, topic_id:x.q.topic_id,
       qtype:x.q.qtype, difficulty:x.q.difficulty, stem:x.q.stem, options:x.q.options,
@@ -1634,6 +1718,13 @@ $("kt-ogrenci").onchange = async () => {
   $("kt-olustur").disabled = !KT.zayif.length;
 };
 /* Otomatik kitapçık başlığı: "Caner AYT-2" — o öğrenciye kaçıncı kitapçık olduğunu sayar */
+/* Kategori: hepsi tek bölümse o bölüm; tek konuysa "konu"; karışıksa konu */
+function otoKategori(secilen){
+  const secs = [...new Set(secilen.map(x=>x.t.section))];
+  const konular = [...new Set(secilen.map(x=>x.t.id))];
+  if (konular.length <= 2) return "konu";
+  return secs.length === 1 ? secs[0] : "konu";
+}
 async function otoKitapcikBaslik(sid, secilen){
   const st = STUDENTS.find(x=>x.id===sid);
   const ad = (st?.name || "Öğrenci").split(" ")[0];        // ilk ad
@@ -1662,8 +1753,9 @@ $("kt-olustur").onclick = async () => {
     if (!secilen.length) { $("kt-msg").innerHTML = '<div class="err">Havuzda uygun onaylı soru yok. Önce Havuz sekmesinden ekle/onayla.'+(eksik.length?"<br>Eksik: "+esc(eksik.join(", ")):"")+'</div>'; $("kt-olustur").disabled=false; return; }
 
     const baslik = ($("kt-baslik").value||"").trim() || await otoKitapcikBaslik(sid, secilen);
+    const kategori = $("kt-kategori").value || otoKategori(secilen);
     const { data: bk, error: bErr } = await sb.from("booklets")
-      .insert({ student_id:sid, title: baslik }).select().single();
+      .insert({ student_id:sid, title: baslik, kategori }).select().single();
     if (bErr) throw bErr;
     const items = secilen.map((x,i)=>({ booklet_id:bk.id, question_id:x.q.id, topic_id:x.q.topic_id,
       qtype:x.q.qtype, difficulty:x.q.difficulty, stem:x.q.stem, options:x.q.options,
