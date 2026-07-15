@@ -9,6 +9,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
 <title>Matematik Teşhis Paneli — Yönetim</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
   :root{--teal:#0f766e;--ink:#0f172a;--mut:#64748b;--bd:#e2e8f0}
   *{box-sizing:border-box}
@@ -85,6 +86,7 @@
       <p class="muted">Öğrenciye vereceğin <b>kod</b> ve <b>şifre</b> ile portal hesabı açılır. Gerçek e-posta rapor göndermek için (isteğe bağlı).</p>
       <div class="row">
         <div><label>Ad Soyad</label><input id="og-ad" /></div>
+        <div style="max-width:120px"><label>Sınıf</label><input id="og-sinif" list="og-sinif-liste" placeholder="ör. 11-A" /><datalist id="og-sinif-liste"><option>9</option><option>10</option><option>11</option><option>12</option><option>Mezun</option></datalist></div>
         <div><label>Kod</label><input id="og-kod" placeholder="ör. elif2026" /></div>
         <div><label>Şifre (≥6)</label><input id="og-sifre" /></div>
         <div><label>Gerçek e-posta (ops.)</label><input id="og-mail" placeholder="veli/öğrenci e-postası" /></div>
@@ -93,9 +95,13 @@
       <div id="og-msg"></div>
     </div>
     <div class="card">
-      <h1 style="font-size:15px">Öğrenci bilgileri</h1>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h1 style="font-size:15px;margin:0">Öğrenci bilgileri</h1>
+        <select id="og-suz" style="width:auto;padding:5px 10px;font-size:13px"><option value="">tüm sınıflar</option></select>
+        <span id="og-sayi" class="muted" style="font-size:12px"></span>
+      </div>
       <p class="muted">Kod ve şifreler yalnızca senin hesabında görünür (satır-düzeyi güvenlik). Bu listeyi kimseyle paylaşma.</p>
-      <div style="overflow-x:auto"><table id="og-tablo"><tr><th>Ad</th><th>Kod</th><th>Şifre</th><th>E-posta</th><th></th></tr></table></div>
+      <div style="overflow-x:auto"><table id="og-tablo"><tr><th>Ad</th><th>Sınıf</th><th>Kod</th><th>Şifre</th><th>E-posta</th><th></th></tr></table></div>
     </div>
   </div>
 
@@ -217,6 +223,43 @@
       <div id="gr-msg"></div>
     </div>
 
+    <div class="card" style="border:2px solid #c7b8f0">
+      <h1 style="font-size:16px;color:#6d28d9">➌ PDF'ten soru kırpma (ücretsiz — AI yok)</h1>
+      <p class="muted">Test kitapçığı PDF'ini yükle → sistem sayfadaki soruları <b>otomatik ayırır</b> → her sorunun düzeyini ve cevabını sen işaretle → toplu havuza ekle. Otomatik bölme tutmazsa fareyle kendin kutu çizebilirsin.</p>
+      <div class="row">
+        <div style="flex:0">
+          <label style="display:inline-block;background:#6d28d9;color:#fff;padding:9px 14px;border-radius:9px;font-weight:600;cursor:pointer;margin-top:16px">
+            <span id="kp-filelabel">PDF seç</span>
+            <input type="file" id="kp-file" accept="application/pdf" style="display:none" />
+          </label>
+        </div>
+        <div><label>Sütun düzeni</label><select id="kp-sutun"><option value="2" selected>2 sütunlu (ÖSYM tarzı)</option><option value="1">Tek sütun</option></select></div>
+        <div style="max-width:150px"><label>Ayırıcı boşluk (cm)</label><input type="number" id="kp-bosluk" value="0.5" min="0.1" max="5" step="0.1" /></div>
+        <div style="max-width:150px"><label>En küçük soru (cm)</label><input type="number" id="kp-minh" value="2" min="0.5" max="15" step="0.5" /></div>
+        <div><label>Varsayılan konu</label><select id="kp-konu"></select></div>
+        <div><label>Varsayılan düzey</label><select id="kp-duzey"><option>temel</option><option>kolay</option><option selected>orta</option><option>zor</option></select></div>
+      </div>
+      <div id="kp-arac" class="hide" style="margin-top:10px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <button class="ghost" id="kp-onceki" style="padding:5px 10px;font-size:12px">‹ Önceki</button>
+          <span id="kp-sayfa" class="chip">–</span>
+          <button class="ghost" id="kp-sonraki" style="padding:5px 10px;font-size:12px">Sonraki ›</button>
+          <button id="kp-bol" style="padding:5px 12px;font-size:12px">⚡ Böl ve önizle</button><button id="kp-uygula" class="hide" style="padding:5px 12px;font-size:12px;background:#059669">✓ Bu bölmeyi uygula</button><span id="kp-olcek" class="muted" style="font-size:11px"></span>
+          <span class="muted" style="font-size:12px">veya görüntü üzerine <b>fareyle sürükleyerek</b> kutu çiz</span>
+        </div>
+        <div style="overflow:auto;max-height:520px;border:1px solid var(--bd);border-radius:8px;background:#f8fafc;position:relative;display:inline-block">
+          <canvas id="kp-canvas" style="display:block;cursor:crosshair"></canvas>
+          <div id="kp-secim" style="position:absolute;border:2px dashed #6d28d9;background:rgba(109,40,217,.12);display:none;pointer-events:none"></div>
+        </div>
+      </div>
+      <div id="kp-liste" style="margin-top:10px"></div>
+      <div id="kp-alt" class="hide" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button id="kp-ekle" style="padding:11px 20px">Seçilenleri havuza ekle</button>
+        <button class="ghost" id="kp-temizle">Listeyi temizle</button>
+        <span id="kp-msg"></span>
+      </div>
+    </div>
+
     <div class="card">
       <h1 style="font-size:15px">PDF / fotoğraftan toplu soru al (AI)</h1>
       <p class="muted">İçinde birden çok soru olan bir PDF veya fotoğraf yükle; sorular çıkarılır, konu/zorluk/çeşide otomatik sınıflanır ve <b>taslak</b> olarak havuza girer. Cevap anahtarı yoksa AI çözer — <b>onaydan geçirmeden öğrenciye çıkarma.</b></p>
@@ -264,7 +307,7 @@
       <p class="muted">Konuları seç, zorluk ve soru sayısını belirle → havuzdan sorular seçilip yazdırılabilir PDF üretilir. İstersen öğrenciye atayıp portalında da görünmesini sağlarsın.</p>
       <div class="row">
         <div><label>Öğrenci (ops. — başlıkta yazar / atama için)</label><select id="se-ogrenci"></select></div>
-        <div><label>Konu başına soru</label><select id="se-adet"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>8</option><option>10</option></select></div>
+        <div><label>Konu başına soru</label><select id="se-adet"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option><option>12</option><option>15</option><option>20</option></select></div>
         <div><label>Sıralama</label><select id="se-sira"><option value="konu">Konuya göre grupla</option><option value="karisik">Karışık</option></select></div>
       </div>
       <div class="row" style="margin-top:4px">
@@ -292,7 +335,7 @@
         <button class="ghost" style="padding:4px 10px;font-size:12px" onclick="seSec('temizle')">Temizle</button>
         <span id="se-secim" class="muted"></span>
       </div>
-      <div id="se-konular" style="max-height:280px;overflow-y:auto;border:1px solid var(--bd);border-radius:10px;padding:8px;margin-top:6px"></div>
+      <div id="se-konular" style="max-height:360px;overflow-y:auto;border:1px solid var(--bd);border-radius:10px;padding:8px;margin-top:6px"></div>
 
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button id="se-uret" style="padding:11px 20px">PDF oluştur</button>
@@ -394,18 +437,38 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => showTab(t.datas
 
 /* ---- öğrenciler + bilgiler ---- */
 async function loadStudents(){
-  const { data } = await sb.from("students").select("*").order("name");
+  const { data } = await sb.from("students").select("*").order("sinif").order("name");
   STUDENTS = data || [];
+  const siniflar = [...new Set(STUDENTS.map(x=>x.sinif).filter(Boolean))].sort();
+  const suz = $("og-suz"), mevcut = suz.value;
+  suz.innerHTML = '<option value="">tüm sınıflar</option>' + siniflar.map(x=>'<option>'+esc(x)+'</option>').join("");
+  suz.value = mevcut;
+  ogTabloCiz();
+  const opts = '<option value="">Öğrenci seç…</option>' + STUDENTS.map(s=>'<option value="'+s.id+'">'+esc(s.name)+(s.sinif?" ("+esc(s.sinif)+")":"")+'</option>').join("");
+  ["vr-ogrenci","ts-ogrenci","kt-ogrenci","se-ogrenci"].forEach(id => { const el = $(id); if (el) { const v = el.value; el.innerHTML = opts; el.value = v; } });
+}
+function ogTabloCiz(){
+  const f = $("og-suz").value;
+  const list = f ? STUDENTS.filter(x=>x.sinif===f) : STUDENTS;
+  $("og-sayi").textContent = list.length + " öğrenci";
   const tbl = $("og-tablo");
-  tbl.innerHTML = "<tr><th>Ad</th><th>Kod</th><th>Şifre</th><th>E-posta</th><th></th></tr>" +
-    (STUDENTS.length ? STUDENTS.map(s =>
-      "<tr><td>"+esc(s.name)+"</td><td>"+esc(s.kod||"—")+"</td><td>"+esc(s.initial_password||"—")+"</td>"+
+  tbl.innerHTML = "<tr><th>Ad</th><th>Sınıf</th><th>Kod</th><th>Şifre</th><th>E-posta</th><th></th></tr>" +
+    (list.length ? list.map(s =>
+      "<tr><td>"+esc(s.name)+"</td>"+
+      "<td>"+(s.sinif?'<span class="chip" style="cursor:pointer" onclick=\'setSinif("'+s.id+'")\'>'+esc(s.sinif)+'</span>':'<a href="#" onclick=\'setSinif("'+s.id+'");return false\' style="font-size:11px">ekle</a>')+"</td>"+
+      "<td>"+esc(s.kod||"—")+"</td><td>"+esc(s.initial_password||"—")+"</td>"+
       "<td>"+esc(s.email||"")+" <a href='#' onclick='setMail(\""+s.id+"\");return false' style='font-size:11px'>düzenle</a></td>"+
       "<td><button class='warn' style='padding:3px 8px;font-size:11px' onclick='delStudent(\""+s.id+"\")'>Sil</button></td></tr>"
-    ).join("") : "<tr><td colspan=5 class='muted'>Henüz öğrenci yok.</td></tr>");
-  const opts = '<option value="">Öğrenci seç…</option>' + STUDENTS.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join("");
-  ["vr-ogrenci","ts-ogrenci","kt-ogrenci","se-ogrenci"].forEach(id => { const el = $(id); if (el) el.innerHTML = opts; });
+    ).join("") : "<tr><td colspan=6 class='muted'>Bu süzgeçte öğrenci yok.</td></tr>");
 }
+$("og-suz").onchange = ogTabloCiz;
+window.setSinif = async (sid) => {
+  const s = STUDENTS.find(x=>x.id===sid);
+  const v = prompt("Sınıf / şube (ör. 11-A):", s?.sinif||"");
+  if (v === null) return;
+  await sb.from("students").update({ sinif: v.trim()||null }).eq("id", sid);
+  loadStudents();
+};
 window.setMail = async (sid) => {
   const s = STUDENTS.find(x=>x.id===sid);
   const m = prompt("Öğrencinin gerçek e-postası (rapor göndermek için):", s?.email||"");
@@ -423,7 +486,7 @@ $("og-ekle").onclick = async () => {
   const ad = $("og-ad").value.trim(), kod = $("og-kod").value.trim(), sifre = $("og-sifre").value, mail = $("og-mail").value.trim();
   if (!ad || !kod || sifre.length < 6) { $("og-msg").innerHTML = '<div class="err">Ad, kod ve en az 6 karakter şifre gerekli.</div>'; return; }
   try {
-    const r = await callFn("admin-create-student", { studentName: ad, kod, sifre, gercekEposta: mail });
+    const r = await callFn("admin-create-student", { studentName: ad, kod, sifre, gercekEposta: mail, sinif: $("og-sinif").value.trim() });
     $("og-msg").innerHTML = '<div class="ok">Hesap açıldı. Öğrenciye ver: <b>kod '+esc(r.kod)+'</b> / şifren.</div>';
     $("og-ad").value = $("og-kod").value = $("og-sifre").value = $("og-mail").value = "";
     loadStudents();
@@ -436,7 +499,7 @@ async function loadExams(){
   EXAMS = data || [];
   $("dn-liste").innerHTML = EXAMS.length ? EXAMS.map(e =>
     '<div class="li"><span style="flex:1">'+esc(e.name)+'</span><span class="chip">'+(e.exam_date||"")+'</span>'+
-    '<button class="ghost" style="padding:4px 8px;font-size:12px" onclick="editCounts(\''+e.id+'\')">Dağılım</button></div>').join("")
+    '<button class="ghost" style="padding:4px 8px;font-size:12px" onclick="editCounts(\''+e.id+'\')">Dağılım</button>'+'<button class="warn" style="padding:4px 8px;font-size:12px" onclick="delExam(\''+e.id+'\',\''+esc(e.name).replace(/'/g,"\\'")+'\')">Sil</button></div>').join("")
     : "Henüz deneme yok.";
   $("vr-deneme").innerHTML = '<option value="">Deneme seç…</option>' + EXAMS.map(e=>'<option value="'+e.id+'">'+esc(e.name)+'</option>').join("");
 }
@@ -445,6 +508,12 @@ $("dn-ekle").onclick = async () => {
   const counts = Object.fromEntries(TOPICS.map(t => [t.id, t.default_count]));
   await sb.from("exams").insert({ name: ad, exam_date: $("dn-tarih").value || null, counts });
   $("dn-ad").value = ""; loadExams();
+};
+window.delExam = async (eid, ad) => {
+  if (!confirm("\"" + ad + "\" denemesi ve bu denemeye girilmiş TÜM öğrenci sonuçları silinecek.\n\nBu işlem geri alınamaz. Devam edilsin mi?")) return;
+  const { error } = await sb.from("exams").delete().eq("id", eid);
+  if (error) { alert("Silinemedi: " + error.message); return; }
+  loadExams(); drawEntry();
 };
 window.editCounts = (eid) => {
   const e = EXAMS.find(x=>x.id===eid);
@@ -819,6 +888,7 @@ $("ts-kopyala").onclick = async () => {
 function fillTopicSelects(){
   const opt = TOPICS.map(t=>'<option value="'+t.id+'">'+esc(t.section)+' · '+esc(t.name)+'</option>').join("");
   $("hv-konu").innerHTML = opt; $("ha-konu").innerHTML = opt; $("gr-konu").innerHTML = opt;
+  const kk = $("kp-konu"); if (kk) kk.innerHTML = opt;
   $("hv-suz").innerHTML = '<option value="">tümü</option>' + opt;
 }
 $("ha-ekle").onclick = async () => {
@@ -1042,33 +1112,280 @@ $("hv-pdf").onclick = async () => {
   w.document.close();
 };
 
+/* ================= PDF → SORU KIRPMA (ücretsiz, AI'sız) =================
+   Yöntem: sayfa görüntüsünde satır bazlı "mürekkep yoğunluğu" ölçülür; soruları
+   ayıran beyaz boşluk şeritleri bulunur ve oralardan kesilir (projeksiyon profili).
+   Otomatik bölme bir ÖNERİDİR; öğretmen düzeltir, siler veya elle kutu çizer. */
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+let KP = { pdf:null, sayfa:1, toplam:0, canvas:null, ctx:null, temiz:null, adaylar:[], sayac:0, olcek:1.6, oneri:[] };
+const PX_PER_CM = () => (KP.olcek * 72) / 2.54;   // pdf.js: scale 1.0 = 72 dpi
+
+document.getElementById("kp-file").addEventListener("change", async (ev) => {
+  const f = ev.target.files[0]; if (!f) return;
+  if (!window.pdfjsLib) { alert("PDF kütüphanesi yüklenemedi. Sayfayı yenileyip tekrar dene."); return; }
+  $("kp-filelabel").textContent = "Yükleniyor…";
+  try {
+    const buf = await f.arrayBuffer();
+    KP.pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    KP.toplam = KP.pdf.numPages; KP.sayfa = 1;
+    $("kp-arac").classList.remove("hide");
+    await kpCiz();
+    $("kp-filelabel").textContent = "Başka PDF seç";
+  } catch(e){ alert("PDF açılamadı: " + (e.message||e)); $("kp-filelabel").textContent = "PDF seç"; }
+  ev.target.value = "";
+});
+async function kpCiz(){
+  const page = await KP.pdf.getPage(KP.sayfa);
+  const vp = page.getViewport({ scale: KP.olcek });
+  const c = document.getElementById("kp-canvas");
+  c.width = vp.width; c.height = vp.height;
+  KP.canvas = c; KP.ctx = c.getContext("2d", { willReadFrequently: true });
+  await page.render({ canvasContext: KP.ctx, viewport: vp }).promise;
+  // temiz kopya (önizleme çizgileri kırpmaya karışmasın)
+  const t = document.createElement("canvas"); t.width = c.width; t.height = c.height;
+  t.getContext("2d").drawImage(c, 0, 0); KP.temiz = t;
+  KP.oneri = []; $("kp-uygula").classList.add("hide");
+  $("kp-sayfa").textContent = "Sayfa " + KP.sayfa + " / " + KP.toplam;
+  const cm = (c.height / PX_PER_CM()).toFixed(1);
+  $("kp-olcek").textContent = "sayfa yüksekliği ≈ " + cm + " cm";
+}
+$("kp-onceki").onclick = async () => { if (KP.sayfa > 1) { KP.sayfa--; await kpCiz(); } };
+$("kp-sonraki").onclick = async () => { if (KP.sayfa < KP.toplam) { KP.sayfa++; await kpCiz(); } };
+
+/* --- otomatik bölme: boşluk (projeksiyon) analizi --- */
+$("kp-bol").onclick = () => {
+  if (!KP.temiz) return;
+  const W = KP.temiz.width, H = KP.temiz.height;
+  const ctx = KP.temiz.getContext("2d", { willReadFrequently: true });
+  const sutun = +$("kp-sutun").value;
+  const bosluk = Math.max(3, Math.round((+$("kp-bosluk").value || 0.5) * PX_PER_CM()));
+  const enAz   = Math.max(20, Math.round((+$("kp-minh").value || 2) * PX_PER_CM()));
+  const genislik = Math.floor(W / sutun);
+  KP.oneri = [];
+  for (let k = 0; k < sutun; k++) {
+    const x0 = k * genislik, gen = (k === sutun-1 ? W - x0 : genislik);
+    const img = ctx.getImageData(x0, 0, gen, H).data;
+    const yog = new Array(H).fill(0);
+    for (let y = 0; y < H; y++) {
+      let n = 0;
+      for (let x = 0; x < gen; x += 2) {
+        const i = (y*gen + x) * 4;
+        if ((img[i] + img[i+1] + img[i+2]) / 3 < 170) n++;
+      }
+      yog[y] = n;
+    }
+    const esik = 2;
+    const bloklar = []; let bas = null, bosSay = 0;
+    for (let y = 0; y < H; y++) {
+      if (yog[y] > esik) { if (bas === null) bas = y; bosSay = 0; }
+      else if (bas !== null) { bosSay++; if (bosSay >= bosluk) { bloklar.push([bas, y-bosSay]); bas = null; bosSay = 0; } }
+    }
+    if (bas !== null) bloklar.push([bas, H-1]);
+    bloklar.forEach(([a,b]) => {
+      if (b - a < enAz) return;
+      const pad = Math.round(0.15 * PX_PER_CM());
+      KP.oneri.push({ x:x0, y:Math.max(0,a-pad), w:gen, h:Math.min(H,b+pad)-Math.max(0,a-pad) });
+    });
+  }
+  kpOnizle();
+  if (KP.oneri.length) {
+    $("kp-uygula").classList.remove("hide");
+    $("kp-msg").innerHTML = '<span class="ok">'+KP.oneri.length+' soru bulundu (mor kutular). Doğruysa "Bu bölmeyi uygula"ya bas.</span>' +
+      '<div class="muted" style="font-size:12px">Fazla parçalandıysa <b>ayırıcı boşluğu artır</b>; sorular birleştiyse <b>azalt</b>, sonra tekrar böl.</div>';
+  } else {
+    $("kp-uygula").classList.add("hide");
+    $("kp-msg").innerHTML = '<span class="err">Bölünemedi. Boşluk değerini küçült ya da fareyle kutu çiz.</span>';
+  }
+};
+function kpOnizle(){
+  const c = KP.canvas, ctx = KP.ctx;
+  ctx.drawImage(KP.temiz, 0, 0);
+  ctx.save();
+  KP.oneri.forEach((r,i) => {
+    ctx.strokeStyle = "#6d28d9"; ctx.lineWidth = 2; ctx.setLineDash([6,4]);
+    ctx.strokeRect(r.x+1, r.y, r.w-2, r.h);
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(109,40,217,.85)";
+    ctx.fillRect(r.x+3, r.y+3, 26, 18);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 12px sans-serif";
+    ctx.fillText(String(i+1), r.x+10, r.y+16);
+  });
+  ctx.restore();
+}
+$("kp-uygula").onclick = () => {
+  KP.oneri.forEach(r => kpAday(r.x, r.y, r.w, r.h));
+  KP.oneri = []; $("kp-uygula").classList.add("hide");
+  KP.ctx.drawImage(KP.temiz, 0, 0);
+  $("kp-msg").innerHTML = '<span class="ok">Aday listeye eklendi — aşağıdan düzey ve cevapları işaretle.</span>';
+};
+["kp-bosluk","kp-minh","kp-sutun"].forEach(id => { const e = $(id); if (e) e.onchange = () => { if (KP.oneri.length) $("kp-bol").click(); }; });
+
+/* --- fareyle kutu çizme --- */
+(function(){
+  const c = document.getElementById("kp-canvas"), kutu = document.getElementById("kp-secim");
+  let bas = null;
+  c.addEventListener("mousedown", (e) => {
+    const r = c.getBoundingClientRect();
+    bas = { x: e.clientX - r.left, y: e.clientY - r.top };
+    kutu.style.display = "block"; kutu.style.left = (c.offsetLeft+bas.x)+"px"; kutu.style.top = (c.offsetTop+bas.y)+"px";
+    kutu.style.width = "0px"; kutu.style.height = "0px";
+  });
+  c.addEventListener("mousemove", (e) => {
+    if (!bas) return;
+    const r = c.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    kutu.style.left = (c.offsetLeft+Math.min(bas.x,x))+"px"; kutu.style.top = (c.offsetTop+Math.min(bas.y,y))+"px";
+    kutu.style.width = Math.abs(x-bas.x)+"px"; kutu.style.height = Math.abs(y-bas.y)+"px";
+  });
+  c.addEventListener("mouseup", (e) => {
+    if (!bas) return;
+    const r = c.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const sx = Math.min(bas.x,x), sy = Math.min(bas.y,y), w = Math.abs(x-bas.x), h = Math.abs(y-bas.y);
+    bas = null; kutu.style.display = "none";
+    if (w > 30 && h > 30) kpAday(sx*(c.width/r.width), sy*(c.height/r.height), w*(c.width/r.width), h*(c.height/r.height));
+  });
+})();
+
+/* --- aday soru: kırp + listeye ekle --- */
+function kpAday(x, y, w, h){
+  const tmp = document.createElement("canvas");
+  tmp.width = Math.round(w); tmp.height = Math.round(h);
+  tmp.getContext("2d").drawImage(KP.temiz || KP.canvas, Math.round(x), Math.round(y), Math.round(w), Math.round(h), 0, 0, Math.round(w), Math.round(h));
+  const id = "kp" + (++KP.sayac);
+  KP.adaylar.push({ id, dataUrl: tmp.toDataURL("image/jpeg", 0.85) });
+  kpListeCiz();
+}
+function kpListeCiz(){
+  const l = document.getElementById("kp-liste");
+  $("kp-alt").classList.toggle("hide", !KP.adaylar.length);
+  if (!KP.adaylar.length) { l.innerHTML = ""; return; }
+  const konuOpt = TOPICS.map(t=>'<option value="'+t.id+'">'+esc(t.section)+' · '+esc(t.name)+'</option>').join("");
+  l.innerHTML = '<div class="muted" style="margin-bottom:6px"><b>'+KP.adaylar.length+' aday soru</b> — her biri için düzey ve cevabı işaretle, gereksizleri sil.</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">' +
+    KP.adaylar.map(a => '<div class="qbox" style="padding:8px">' +
+      '<img src="'+a.dataUrl+'" style="width:100%;border:1px solid #e2e8f0;border-radius:6px;background:#fff" />' +
+      '<div style="margin-top:6px"><select id="'+a.id+'-konu" style="font-size:12px;padding:5px">'+konuOpt+'</select></div>' +
+      '<div style="display:flex;gap:4px;margin-top:6px" id="'+a.id+'-duzeygrup">' +
+        ["temel","kolay","orta","zor"].map(d =>
+          '<label style="flex:1;text-align:center;font-size:11px;padding:5px 2px;border:1px solid #cbd5e1;border-radius:7px;cursor:pointer;background:#fff">' +
+          '<input type="radio" name="'+a.id+'-d" value="'+d+'" style="display:none" '+(d==="orta"?"checked":"")+'>'+d+'</label>').join("") +
+      '</div>' +
+      '<div style="display:flex;gap:4px;margin-top:6px;align-items:center">' +
+        '<span class="muted" style="font-size:11px">Cevap</span>' +
+        '<select id="'+a.id+'-c" style="font-size:12px;padding:4px;flex:1"><option value="">—</option>'+["A","B","C","D","E"].map(x=>'<option>'+x+'</option>').join("")+'</select>' +
+        '<button class="warn" style="padding:4px 8px;font-size:11px" onclick="kpSil(\''+a.id+'\')">Sil</button>' +
+      '</div></div>').join("") + '</div>';
+  // varsayılan konu/düzey uygula + radyo görselleştir
+  KP.adaylar.forEach(a => {
+    const ks = $(a.id+"-konu"); if (ks && $("kp-konu").value) ks.value = $("kp-konu").value;
+    const dv = $("kp-duzey").value;
+    const r = document.querySelector('input[name="'+a.id+'-d"][value="'+dv+'"]'); if (r) r.checked = true;
+    document.querySelectorAll('input[name="'+a.id+'-d"]').forEach(inp => {
+      const boya = () => document.querySelectorAll('input[name="'+a.id+'-d"]').forEach(o => {
+        o.parentElement.style.background = o.checked ? "#0f766e" : "#fff";
+        o.parentElement.style.color = o.checked ? "#fff" : "#334155";
+        o.parentElement.style.borderColor = o.checked ? "#0f766e" : "#cbd5e1";
+      });
+      inp.onchange = boya; boya();
+    });
+  });
+}
+window.kpSil = (id) => { KP.adaylar = KP.adaylar.filter(a=>a.id!==id); kpListeCiz(); };
+$("kp-temizle").onclick = () => { KP.adaylar = []; kpListeCiz(); $("kp-msg").textContent = ""; };
+
+function dataUrlToBlob(d){
+  const [b, veri] = d.split(","); const mime = b.match(/:(.*?);/)[1];
+  const bin = atob(veri); const arr = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+$("kp-ekle").onclick = async () => {
+  if (!KP.adaylar.length) return;
+  const eksik = KP.adaylar.filter(a => !$(a.id+"-c").value);
+  if (eksik.length && !confirm(eksik.length+" soruda cevap seçilmemiş. Bunlar TASLAK olarak eklenecek (öğrenciye çıkmaz). Devam?")) return;
+  $("kp-ekle").disabled = true; $("kp-msg").innerHTML = '<span class="muted">Yükleniyor…</span>';
+  let ok = 0, hata = 0;
+  for (const a of KP.adaylar) {
+    try {
+      const blob = dataUrlToBlob(a.dataUrl);
+      const path = "q_"+Date.now()+"_"+Math.random().toString(36).slice(2,7)+".jpg";
+      const up = await sb.storage.from("soru-gorselleri").upload(path, blob, { contentType:"image/jpeg" });
+      if (up.error) throw up.error;
+      const url = sb.storage.from("soru-gorselleri").getPublicUrl(path).data.publicUrl;
+      const cev = $(a.id+"-c").value;
+      const dz = (document.querySelector('input[name="'+a.id+'-d"]:checked')||{}).value || "orta";
+      const { error } = await sb.from("questions").insert([{
+        topic_id: $(a.id+"-konu").value, difficulty: dz, qtype: "grafik",
+        has_figure: true, image_url: url, stem: "", options: {},
+        correct: cev || "A", solution: null,
+        status: cev ? "dogrulandi" : "taslak", source: "cikmis", content_hash: await sha256(url)
+      }]);
+      if (error) throw error;
+      ok++;
+    } catch(e){ hata++; console.error(e); }
+  }
+  $("kp-msg").innerHTML = '<span class="ok">'+ok+' soru havuza eklendi.</span>' + (hata?' <span class="err">'+hata+' başarısız.</span>':"");
+  KP.adaylar = []; kpListeCiz(); loadPool();
+  $("kp-ekle").disabled = false;
+};
+
 /* ================= SORU SETİ PDF ================= */
 let SE = { son: null };
 function seKonularCiz(){
+  const renk = { TYT: "#0f766e", AYT: "#b45309" };
   let html = "";
   for (const sec of ["TYT","AYT"]) {
-    const list = TOPICS.filter(t=>t.section===sec);
-    let grp = null;
-    html += '<div class="grp" style="margin-top:6px">'+sec+'</div>';
-    for (const t of list) {
-      if (t.grp !== grp) { grp = t.grp; html += '<div style="font-size:11px;color:#94a3b8;margin:6px 0 2px">'+esc(grp)+'</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 10px">'; }
-      html += '<label style="font-size:13px;display:flex;align-items:center;gap:6px;padding:2px 0"><input type="checkbox" class="se-k" value="'+t.id+'" style="width:auto"> '+esc(t.name)+'</label>';
+    const gruplar = [...new Set(TOPICS.filter(t=>t.section===sec).map(t=>t.grp))];
+    html += '<div style="margin-bottom:10px">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px">'+
+      '<span style="background:'+renk[sec]+';color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px">'+sec+'</span>'+
+      '<div style="flex:1;height:1px;background:#e2e8f0"></div></div>';
+    for (const g of gruplar) {
+      const list = TOPICS.filter(t=>t.section===sec && t.grp===g);
+      const gid = "seg_" + sec + "_" + g.replace(/[^a-zA-Z0-9]/g,"");
+      html += '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;margin-bottom:6px;background:#fff">'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+
+          '<label style="font-size:12px;font-weight:700;color:'+renk[sec]+';cursor:pointer;display:flex;align-items:center;gap:5px">'+
+            '<input type="checkbox" id="'+gid+'" style="width:auto" onchange="seGrup(this,\''+sec+'\',\''+esc(g)+'\')"> '+esc(g)+
+          '</label>'+
+          '<span class="muted" style="font-size:11px">('+list.length+' konu)</span>'+
+        '</div>'+
+        '<div style="display:flex;flex-wrap:wrap;gap:5px">'+
+        list.map(t => '<label class="se-etiket" data-id="'+t.id+'" style="font-size:12px;padding:4px 10px;border:1px solid #cbd5e1;border-radius:99px;cursor:pointer;background:#f8fafc;color:#334155;user-select:none">'+
+          '<input type="checkbox" class="se-k" value="'+t.id+'" style="display:none"> '+esc(t.name)+'</label>').join("")+
+        '</div></div>';
     }
     html += '</div>';
   }
   $("se-konular").innerHTML = html;
-  document.querySelectorAll(".se-k").forEach(c => c.onchange = seSayac);
+  document.querySelectorAll(".se-k").forEach(c => c.onchange = () => { seEtiketBoya(c); seSayac(); });
   seSayac();
 }
+function seEtiketBoya(c){
+  const et = c.parentElement;
+  et.style.background = c.checked ? "#0f766e" : "#f8fafc";
+  et.style.color = c.checked ? "#fff" : "#334155";
+  et.style.borderColor = c.checked ? "#0f766e" : "#cbd5e1";
+  et.style.fontWeight = c.checked ? "600" : "400";
+}
+window.seGrup = (box, sec, grp) => {
+  TOPICS.filter(t=>t.section===sec && t.grp===grp).forEach(t => {
+    const c = document.querySelector('.se-k[value="'+t.id+'"]');
+    if (c) { c.checked = box.checked; seEtiketBoya(c); }
+  });
+  seSayac();
+};
 function seSayac(){
   const n = document.querySelectorAll(".se-k:checked").length;
   $("se-secim").textContent = n ? n+" konu seçili" : "konu seçilmedi";
 }
 window.seSec = async (mod) => {
   const boxes = [...document.querySelectorAll(".se-k")];
-  if (mod === "temizle") boxes.forEach(b=>b.checked=false);
-  else if (mod === "tyt") boxes.forEach(b=>{ const t=topicById(b.value); b.checked = t && t.section==="TYT"; });
-  else if (mod === "ayt") boxes.forEach(b=>{ const t=topicById(b.value); b.checked = t && t.section==="AYT"; });
+  const bitir = () => { boxes.forEach(seEtiketBoya); document.querySelectorAll('[id^="seg_"]').forEach(g=>g.checked=false); seSayac(); };
+  if (mod === "temizle") { boxes.forEach(b=>b.checked=false); bitir(); return; }
+  else if (mod === "tyt") { boxes.forEach(b=>{ const t=topicById(b.value); b.checked = t && t.section==="TYT"; }); bitir(); return; }
+  else if (mod === "ayt") { boxes.forEach(b=>{ const t=topicById(b.value); b.checked = t && t.section==="AYT"; }); bitir(); return; }
   else if (mod === "zayif") {
     const sid = $("se-ogrenci").value;
     if (!sid) { alert("Önce öğrenci seç."); return; }
@@ -1077,7 +1394,7 @@ window.seSec = async (mod) => {
     if (!zayif.size) { alert("Bu öğrencide eşik altı konu yok ya da veri girilmemiş."); return; }
     boxes.forEach(b => b.checked = zayif.has(b.value));
   }
-  seSayac();
+  bitir();
 };
 $("se-uret").onclick = async () => {
   const tids = [...document.querySelectorAll(".se-k:checked")].map(c=>c.value);
