@@ -587,6 +587,25 @@ $("vr-hepsi").onchange = drawEntry;
 
 /* ---- KARNE PDF -> otomatik doldur ---- */
 async function fileToB64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(",")[1]); r.onerror=rej; r.readAsDataURL(file); }); }
+/* PDF'i tarayıcıda görüntüye çevir: metin katmanı olmayan (vektör/taranmış)
+   PDF'ler ham gönderildiğinde AI okuyamıyor; görüntü her zaman okunur. */
+async function pdfToImages(file, maxSayfa = 4){
+  if (!window.pdfjsLib) throw new Error("PDF kütüphanesi yüklenemedi, sayfayı yenile.");
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const n = Math.min(pdf.numPages, maxSayfa);
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({ scale: 2 });
+    const c = document.createElement("canvas");
+    c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
+    out.push({ b64: c.toDataURL("image/jpeg", 0.9).split(",")[1], mime: "image/jpeg" });
+  }
+  return { images: out, toplam: pdf.numPages, alinan: n };
+}
+
 document.getElementById("vr-pdf").addEventListener("change", async (ev) => {
   const files = [...ev.target.files]; if (!files.length) return;
   const eid = $("vr-deneme").value, sid = $("vr-ogrenci").value;
@@ -596,35 +615,48 @@ document.getElementById("vr-pdf").addEventListener("change", async (ev) => {
   const fotolar = files.filter(f => f !== pdf && (f.type||"").indexOf("image/") === 0);
   if (!pdf && !fotolar.length) { $("vr-pdfmsg").innerHTML = '<span class="err">PDF veya fotoğraf seç.</span>'; ev.target.value=""; return; }
 
-  // küçük önizleme (fotoğraflar için)
   $("vr-onizleme").innerHTML = fotolar.map(f =>
     '<img src="'+URL.createObjectURL(f)+'" style="height:70px;border:1px solid #cbd5e1;border-radius:6px" />').join("")
     + (pdf ? '<span class="chip">📄 '+esc(pdf.name)+'</span>' : "");
 
   $("vr-pdflabel").textContent = "Okunuyor…";
-  $("vr-pdfmsg").innerHTML = '<span class="muted">Karne okunuyor'+(fotolar.length>1?" ("+fotolar.length+" sayfa)":"")+', bekle…</span>';
+  $("vr-pdfmsg").innerHTML = '<span class="muted">Hazırlanıyor…</span>';
   try {
-    const payload = { action:"karne", topicList: TOPICS.map(t=>({id:t.id,name:t.name,section:t.section})) };
-    if (pdf) payload.pdfBase64 = await fileToB64(pdf);
-    if (fotolar.length) payload.images = await Promise.all(
-      fotolar.map(async f => ({ b64: await fileToB64(f), mime: f.type || "image/jpeg" })));
-    const out = await callFn("ai-proxy", payload);
+    const gorseller = [];
+    if (pdf) {
+      $("vr-pdfmsg").innerHTML = '<span class="muted">PDF görüntüye çevriliyor…</span>';
+      const r = await pdfToImages(pdf);
+      gorseller.push(...r.images);
+      $("vr-onizleme").innerHTML = r.images.map(im =>
+        '<img src="data:image/jpeg;base64,'+im.b64+'" style="height:80px;border:1px solid #cbd5e1;border-radius:6px" />').join("");
+      if (r.toplam > r.alinan) $("vr-pdfmsg").innerHTML = '<span class="muted">Not: '+r.toplam+' sayfanın ilk '+r.alinan+' sayfası okunuyor.</span>';
+    }
+    for (const f of fotolar) gorseller.push({ b64: await fileToB64(f), mime: f.type || "image/jpeg" });
+
+    $("vr-pdfmsg").innerHTML = '<span class="muted">Karne okunuyor'+(gorseller.length>1?" ("+gorseller.length+" sayfa)":"")+', bekle…</span>';
+    const out = await callFn("ai-proxy", { action:"karne", images: gorseller,
+      topicList: TOPICS.map(t=>({id:t.id,name:t.name,section:t.section})) });
     const rows = out.results || [];
-    if (!rows.length) { $("vr-pdfmsg").innerHTML = '<span class="err">Karneden konu okunamadı. Konu bazlı kırılım içeren, net bir karne mi?</span>'; $("vr-pdflabel").textContent="PDF / fotoğraf seç"; return; }
+    if (!rows.length) {
+      $("vr-pdfmsg").innerHTML = '<span class="err">Bu belgede konu bazlı Doğru/Yanlış/Boş kırılımı bulunamadı.</span>' +
+        '<div class="muted" style="font-size:12px">Yüklediğin dosya bir <b>karne</b> mi? (Soru kitapçığı veya cevap kâğıdı okunamaz.) ' +
+        'Karne ise konu adlarının net göründüğünden emin ol; olmuyorsa aşağıdaki tabloya elle gir.</div>';
+      $("vr-pdflabel").textContent = "PDF / fotoğraf seç"; return;
+    }
     let n = 0; const disari = [];
     rows.forEach(r => { const t = topicById(r.id); if (!t) return;
       const d = $("vd-"+r.id), y = $("vy-"+r.id), b = $("vb-"+r.id);
       if (d && y && b) { d.value = (+r.d||0); y.value = (+r.y||0); b.value = (+r.b||0); vrTop(r.id); n++; }
       else disari.push(t.name); });
     $("vr-pdfmsg").innerHTML = '<span class="ok">'+n+' konu dolduruldu. Kontrol et, sonra Kaydet\'e bas.</span>' +
-      (disari.length ? '<div class="muted">Bu denemenin dağılımında olmayan konular atlandı: '+esc(disari.join(", "))+' ("Tüm konuları göster"i işaretleyip tekrar dene.)</div>' : "");
+      (disari.length ? '<div class="muted">Listede olmayan konular atlandı: '+esc(disari.join(", "))+' ("Tüm konuları göster"i işaretleyip tekrar dene.)</div>' : "");
     $("vr-pdflabel").textContent = "Başka karne seç";
     ev.target.value = "";
   } catch(e){
     const m = String(e.message||e);
     $("vr-pdfmsg").innerHTML = '<span class="err">Okuma başarısız: '+esc(m)+'</span>' +
-      (m.indexOf("anahtar")>-1||m.indexOf("ANTHROPIC")>-1||m.indexOf("GEMINI")>-1||m.indexOf("credit")>-1
-        ? '<div class="muted">AI kapalı/bakiyesiz. Ücretsiz yol: aşağıdaki "Elle / belgeden giriş".</div>' : '');
+      (m.indexOf("anahtar")>-1||m.indexOf("ANTHROPIC")>-1||m.indexOf("GEMINI")>-1||m.indexOf("credit")>-1||m.indexOf("quota")>-1
+        ? '<div class="muted">AI kapalı/kotası dolu olabilir. Bu arada aşağıdaki tabloya elle girebilirsin.</div>' : '');
     $("vr-pdflabel").textContent = "PDF / fotoğraf seç";
   }
 });
