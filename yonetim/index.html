@@ -97,6 +97,8 @@
     <div class="ylink" data-t="gon"><span class="ik">📥</span> Gönderiler <span id="gn-rozet" class="chip hide" style="background:#fef3c7;color:#92400e;margin-left:auto">0</span></div>
     <div class="ylink" data-t="tes"><span class="ik">📊</span> Teşhis &amp; Rapor</div>
     <div class="ylink" data-t="kit"><span class="ik">📕</span> Kitapçık</div>
+    <div id="yon-bas" class="ybas hide">Yönetim</div>
+    <div id="yon-link" class="ylink hide" data-t="yon"><span class="ik">🛡</span> Öğretmenler</div>
   </nav>
   <main class="icerik">
   <div id="p-login" class="card" style="max-width:420px;margin:40px auto">
@@ -373,6 +375,27 @@
     </div>
   </div>
 
+  <!-- YÖNETİCİ: ÖĞRETMENLER -->
+  <div id="p-yon" class="hide">
+    <div class="card">
+      <h1 style="font-size:16px;color:#0f766e">Yeni öğretmen hesabı</h1>
+      <p class="muted">Eklediğin öğretmen <b>yalnızca kendi öğrencilerini</b> görür. Soru havuzu ortaktır.
+      Sen yönetici olarak tüm öğretmenlerin verisine erişirsin.</p>
+      <div class="row">
+        <div><label>Ad Soyad</label><input id="ot-ad" placeholder="ör. Ayşe Yılmaz" /></div>
+        <div><label>E-posta</label><input id="ot-mail" type="email" placeholder="ogretmen@okul.com" /></div>
+        <div><label>Şifre (≥6)</label><input id="ot-sifre" /></div>
+        <div style="flex:0"><button id="ot-ekle" style="padding:11px 18px">Hesap aç</button></div>
+      </div>
+      <div id="ot-msg"></div>
+    </div>
+    <div class="card">
+      <h1 style="font-size:15px">Öğretmenler</h1>
+      <p class="muted">Yönetici rolü verilen kullanıcı <b>tüm</b> öğretmenlerin verisini görür.</p>
+      <div style="overflow-x:auto"><table id="ot-tablo"><tr><th>Ad</th><th>E-posta</th><th>Rol</th><th>Öğrenci</th><th></th></tr></table></div>
+    </div>
+  </div>
+
   <!-- SORU SETİ PDF -->
   <div id="p-set" class="hide">
     <div class="card">
@@ -505,7 +528,8 @@ sb.auth.getSession().then(({data}) => { if (data.session) boot(); });
 
 async function boot(){
   const { data: prof, error } = await sb.rpc("get_my_profile");
-  if (error || prof?.role !== "yetkili") { $("lg-err").textContent = "Bu panel yetkili hesabı içindir."; await sb.auth.signOut(); return; }
+  if (error || !["yetkili","admin"].includes(prof?.role)) { $("lg-err").textContent = "Bu panel öğretmen hesabı içindir."; await sb.auth.signOut(); return; }
+  BENIM_ROL = prof.role;
   $("p-login").classList.add("hide"); $("yan").classList.remove("hide"); $("logout").classList.remove("hide"); $("ham").classList.remove("hide");
   showTab("ogr");
   const t = await sb.from("topics").select("*").order("section").order("grp");
@@ -514,10 +538,15 @@ async function boot(){
   seKonularCiz();
   await Promise.all([loadStudents(), loadExams()]);
   loadPool(); gnYukle(); gnRozet();
+  if (BENIM_ROL === "admin") {
+    $("yon-bas").classList.remove("hide"); $("yon-link").classList.remove("hide");
+    document.querySelector(".sub").textContent = "Yönetici · tüm öğretmenler";
+    otYukle();
+  }
 }
 function showTab(k){
   document.querySelectorAll(".ylink").forEach(x => x.classList.toggle("on", x.dataset.t === k));
-  ["ogr","den","veri","gon","tes","hav","kirp","set","kit"].forEach(p => $("p-"+p).classList.toggle("hide", p !== k));
+  ["ogr","den","veri","gon","tes","hav","kirp","set","kit","yon"].forEach(p => $("p-"+p).classList.toggle("hide", p !== k));
   $("yan").classList.remove("acik");            // mobilde seçince menü kapansın
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -540,15 +569,18 @@ function ogTabloCiz(){
   const f = $("og-suz").value;
   const list = f ? STUDENTS.filter(x=>x.sinif===f) : STUDENTS;
   $("og-sayi").textContent = list.length + " öğrenci";
+  const admin = BENIM_ROL === "admin";
+  const ogrAd = (uid) => { const t = OGRETMENLER.find(x=>x.user_id===uid); return t ? (t.ad||t.email) : "—"; };
   const tbl = $("og-tablo");
-  tbl.innerHTML = "<tr><th>Ad</th><th>Sınıf</th><th>Kod</th><th>Şifre</th><th>E-posta</th><th></th></tr>" +
+  tbl.innerHTML = "<tr><th>Ad</th><th>Sınıf</th>"+(admin?"<th>Öğretmen</th>":"")+"<th>Kod</th><th>Şifre</th><th>E-posta</th><th></th></tr>" +
     (list.length ? list.map(s =>
       "<tr><td>"+esc(s.name)+"</td>"+
       "<td>"+(s.sinif?'<span class="chip" style="cursor:pointer" onclick=\'setSinif("'+s.id+'")\'>'+esc(s.sinif)+'</span>':'<a href="#" onclick=\'setSinif("'+s.id+'");return false\' style="font-size:11px">ekle</a>')+"</td>"+
+      (admin ? '<td class="muted" style="font-size:12px">'+esc(ogrAd(s.owner))+'</td>' : "")+
       "<td>"+esc(s.kod||"—")+"</td><td>"+esc(s.initial_password||"—")+"</td>"+
       "<td>"+esc(s.email||"")+" <a href='#' onclick='setMail(\""+s.id+"\");return false' style='font-size:11px'>düzenle</a></td>"+
       "<td><button class='warn' style='padding:3px 8px;font-size:11px' onclick='delStudent(\""+s.id+"\")'>Sil</button></td></tr>"
-    ).join("") : "<tr><td colspan=6 class='muted'>Bu süzgeçte öğrenci yok.</td></tr>");
+    ).join("") : "<tr><td colspan='7' class='muted'>Bu süzgeçte öğrenci yok.</td></tr>");
 }
 $("og-suz").onchange = ogTabloCiz;
 window.setSinif = async (sid) => {
@@ -746,6 +778,44 @@ $("vr-kaydet").onclick = async () => {
   const { error } = await sb.from("results").upsert(rows, { onConflict: "student_id,exam_id,topic_id" });
   $("vr-msg").innerHTML = error ? '<span class="err">'+esc(error.message)+'</span>'
     : '<span class="ok">Kaydedildi — '+rows.length+' konu ölçüldü ('+rows.reduce((a,r)=>a+r.count,0)+' soru).</span>';
+};
+
+/* ================= YÖNETİCİ: ÖĞRETMENLER ================= */
+let BENIM_ROL = "yetkili", OGRETMENLER = [];
+async function otYukle(){
+  const { data, error } = await sb.rpc("admin_list_teachers");
+  if (error || data?.error) { $("ot-tablo").innerHTML = '<tr><td class="err">'+esc(error?.message || data.error)+'</td></tr>'; return; }
+  OGRETMENLER = data || [];
+  $("ot-tablo").innerHTML = '<tr><th>Ad</th><th>E-posta</th><th>Rol</th><th>Öğrenci</th><th></th></tr>' +
+    OGRETMENLER.map(t => {
+      const ben = t.role === "admin";
+      return '<tr><td>'+esc(t.ad||"—")+'</td><td class="muted">'+esc(t.email)+'</td>'+
+      '<td><span class="chip" style="background:'+(ben?"#0f766e;color:#fff":"#f1f5f9;color:#475569")+'">'+
+        (ben?"Yönetici":"Öğretmen")+'</span></td>'+
+      '<td>'+t.ogrenci+'</td>'+
+      '<td><button class="ghost" style="padding:3px 9px;font-size:11px" onclick="otRol(\''+t.user_id+'\',\''+(ben?"yetkili":"admin")+'\')">'+
+        (ben?"Öğretmen yap":"Yönetici yap")+'</button></td></tr>';
+    }).join("");
+}
+window.otRol = async (uid, rol) => {
+  if (!confirm(rol==="admin" ? "Bu kullanıcı YÖNETİCİ olacak: tüm öğretmenlerin verisini görebilecek. Onaylıyor musun?"
+                              : "Bu kullanıcı normal öğretmen olacak: yalnızca kendi öğrencilerini görecek. Onaylıyor musun?")) return;
+  const { data, error } = await sb.rpc("admin_set_role", { p_user_id: uid, p_role: rol });
+  if (error || data?.error) { alert("Değiştirilemedi: " + (error?.message || data.error)); return; }
+  otYukle();
+};
+$("ot-ekle").onclick = async () => {
+  const ad = $("ot-ad").value.trim(), mail = $("ot-mail").value.trim(), sifre = $("ot-sifre").value;
+  $("ot-msg").innerHTML = "";
+  if (!mail || sifre.length < 6) { $("ot-msg").innerHTML = '<div class="err">E-posta ve en az 6 karakter şifre gerekli.</div>'; return; }
+  $("ot-ekle").disabled = true;
+  try {
+    await callFn("admin-create-teacher", { email: mail, sifre, ad });
+    $("ot-msg").innerHTML = '<div class="ok">Öğretmen hesabı açıldı: <b>'+esc(mail)+'</b> — giriş bilgilerini kendisine ilet.</div>';
+    $("ot-ad").value = $("ot-mail").value = $("ot-sifre").value = "";
+    otYukle();
+  } catch(e){ $("ot-msg").innerHTML = '<div class="err">'+esc(e.message||e)+'</div>'; }
+  $("ot-ekle").disabled = false;
 };
 
 /* ================= ÖĞRENCİ GÖNDERİLERİ ================= */
