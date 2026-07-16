@@ -119,7 +119,7 @@
       <div class="row">
         <div><label>Ad Soyad</label><input id="og-ad" /></div>
         <div style="max-width:120px"><label>Sınıf</label><input id="og-sinif" list="og-sinif-liste" placeholder="ör. 11-A" /><datalist id="og-sinif-liste"><option>9</option><option>10</option><option>11</option><option>12</option><option>Mezun</option></datalist></div>
-        <div><label>Kod</label><input id="og-kod" placeholder="ör. elif2026" /></div>
+        <div><label>Kod <a href="#" id="og-oner" style="font-size:11px;font-weight:400">öner</a></label><input id="og-kod" placeholder="ör. elif2026" /></div>
         <div><label>Şifre (≥6)</label><input id="og-sifre" /></div>
         <div><label>Gerçek e-posta (ops.)</label><input id="og-mail" placeholder="veli/öğrenci e-postası" /></div>
         <div style="flex:0"><button id="og-ekle">Hesap aç</button></div>
@@ -146,6 +146,7 @@
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <h1 style="font-size:15px;margin:0">Öğrenci bilgileri</h1>
         <select id="og-suz" style="width:auto;padding:5px 10px;font-size:13px"><option value="">tüm sınıflar</option></select>
+        <select id="og-kapsam" class="hide" style="width:auto;padding:5px 10px;font-size:13px"><option value="hepsi">tüm öğretmenler</option><option value="benim">sadece benim öğrencilerim</option></select>
         <span id="og-sayi" class="muted" style="font-size:12px"></span>
       </div>
       <p class="muted">Kod ve şifreler yalnızca senin hesabında görünür (satır-düzeyi güvenlik). Bu listeyi kimseyle paylaşma.</p>
@@ -419,7 +420,7 @@
       <h1 style="font-size:16px;color:#0f766e">Öğrenciye özel soru seti hazırla</h1>
       <p class="muted">Konuları seç, zorluk ve soru sayısını belirle → havuzdan sorular seçilip yazdırılabilir PDF üretilir. İstersen öğrenciye atayıp portalında da görünmesini sağlarsın.</p>
       <div class="row">
-        <div><label>Öğrenci (ops. — başlıkta yazar / atama için)</label><select id="se-ogrenci"></select></div>
+        <div><label>Öğrenci <span class="muted">(atama yapacaksan zorunlu)</span></label><select id="se-ogrenci"></select></div>
         <div><label>Konu başına soru</label><select id="se-adet"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option><option>12</option><option>15</option><option>20</option></select></div>
         <div><label>Sıralama</label><select id="se-sira"><option value="konu">Konuya göre grupla</option><option value="karisik">Karışık</option></select></div>
         <div><label>Düzen</label><select id="se-duzen"><option value="2" selected>2 sütun (ÖSYM tarzı)</option><option value="1">Tek sütun</option></select></div>
@@ -457,7 +458,7 @@
 
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button id="se-uret" style="padding:11px 20px">PDF oluştur</button>
-        <button class="ghost" id="se-ata" disabled>Öğrenciye ata (portalda görünsün)</button>
+        <button class="ghost" id="se-ata">📤 Öğrenciye ata (portalında görünsün)</button>
       </div>
       <div id="se-msg"></div>
     </div>
@@ -535,6 +536,7 @@ async function boot(){
   const { data: prof, error } = await sb.rpc("get_my_profile");
   if (error || !["yetkili","admin"].includes(prof?.role)) { $("lg-err").textContent = "Bu panel öğretmen hesabı içindir."; await sb.auth.signOut(); return; }
   BENIM_ROL = prof.role;
+  const { data:{ user: buser } } = await sb.auth.getUser(); BENIM_UID = buser?.id || null;
   $("p-login").classList.add("hide"); $("yan").classList.remove("hide"); $("logout").classList.remove("hide"); $("ham").classList.remove("hide");
   showTab("ogr");
   const t = await sb.from("topics").select("*").order("section").order("grp");
@@ -545,8 +547,9 @@ async function boot(){
   loadPool(); gnYukle(); gnRozet(); qrKur();
   if (BENIM_ROL === "admin") {
     $("yon-bas").classList.remove("hide"); $("yon-link").classList.remove("hide");
+    $("og-kapsam").classList.remove("hide");
     document.querySelector(".sub").textContent = "Yönetici · tüm öğretmenler";
-    otYukle();
+    await otYukle(); ogTabloCiz();
   }
 }
 function showTab(k){
@@ -572,7 +575,9 @@ async function loadStudents(){
 }
 function ogTabloCiz(){
   const f = $("og-suz").value;
-  const list = f ? STUDENTS.filter(x=>x.sinif===f) : STUDENTS;
+  let list = f ? STUDENTS.filter(x=>x.sinif===f) : STUDENTS;
+  if (BENIM_ROL === "admin" && $("og-kapsam").value === "benim" && BENIM_UID)
+    list = list.filter(x => x.owner === BENIM_UID);
   $("og-sayi").textContent = list.length + " öğrenci";
   const admin = BENIM_ROL === "admin";
   const ogrAd = (uid) => { const t = OGRETMENLER.find(x=>x.user_id===uid); return t ? (t.ad||t.email) : "—"; };
@@ -588,6 +593,7 @@ function ogTabloCiz(){
     ).join("") : "<tr><td colspan='7' class='muted'>Bu süzgeçte öğrenci yok.</td></tr>");
 }
 $("og-suz").onchange = ogTabloCiz;
+$("og-kapsam").onchange = ogTabloCiz;
 window.setSinif = async (sid) => {
   const s = STUDENTS.find(x=>x.id===sid);
   const v = prompt("Sınıf / şube (ör. 11-A):", s?.sinif||"");
@@ -607,6 +613,20 @@ window.delStudent = async (sid) => {
   await sb.from("students").delete().eq("id", sid);
   loadStudents();
 };
+/* Ad + rastgele son ekten benzersiz kod önerisi (Türkçe karakterler sadeleşir) */
+$("og-oner").onclick = (e) => {
+  e.preventDefault();
+  const ad = ($("og-ad").value || "ogrenci").trim().split(/\s+/)[0];
+  const sade = ad.toLocaleLowerCase("tr")
+    .replace(/ı/g,"i").replace(/ş/g,"s").replace(/ğ/g,"g").replace(/ü/g,"u")
+    .replace(/ö/g,"o").replace(/ç/g,"c").replace(/[^a-z0-9]/g,"");
+  const kullanilan = new Set(STUDENTS.map(x=>(x.kod||"").toLowerCase()));
+  let aday, n = 0;
+  do { aday = (sade || "ogrenci") + (Math.floor(Math.random()*900)+100) + (n++ ? n : ""); }
+  while (kullanilan.has(aday) && n < 50);
+  $("og-kod").value = aday;
+  if (!$("og-sifre").value) $("og-sifre").value = Math.random().toString(36).slice(2,10);
+};
 $("og-ekle").onclick = async () => {
   $("og-msg").innerHTML = "";
   const ad = $("og-ad").value.trim(), kod = $("og-kod").value.trim(), sifre = $("og-sifre").value, mail = $("og-mail").value.trim();
@@ -616,7 +636,12 @@ $("og-ekle").onclick = async () => {
     $("og-msg").innerHTML = '<div class="ok">Hesap açıldı. Öğrenciye ver: <b>kod '+esc(r.kod)+'</b> / şifren.</div>';
     $("og-ad").value = $("og-kod").value = $("og-sifre").value = $("og-mail").value = "";
     loadStudents();
-  } catch(e){ $("og-msg").innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+  } catch(e){
+    const m = String(e.message||e);
+    $("og-msg").innerHTML = '<div class="err" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 10px">'+esc(m)+'</div>' +
+      (m.indexOf("kullanımda") > -1 || m.indexOf("registered") > -1
+        ? '<div class="muted" style="font-size:12px;margin-top:4px">Kodlar tüm sistemde benzersiz olmalı. Yukarıdaki <b>öner</b> bağlantısına tıklayarak boş bir kod al.</div>' : "");
+  }
 };
 
 /* ================= QR ÜRETİCİ (gömülü — dış kütüphane yok) =================
@@ -895,7 +920,7 @@ $("vr-kaydet").onclick = async () => {
 };
 
 /* ================= YÖNETİCİ: ÖĞRETMENLER ================= */
-let BENIM_ROL = "yetkili", OGRETMENLER = [];
+let BENIM_ROL = "yetkili", BENIM_UID = null, OGRETMENLER = [];
 async function otYukle(){
   const { data, error } = await sb.rpc("admin_list_teachers");
   if (error || data?.error) { $("ot-tablo").innerHTML = '<tr><td class="err">'+esc(error?.message || data.error)+'</td></tr>'; return; }
@@ -1821,7 +1846,7 @@ $("se-uret").onclick = async () => {
   const tids = [...document.querySelectorAll(".se-k:checked")].map(c=>c.value);
   const zorluklar = [...document.querySelectorAll(".se-z:checked")].map(c=>c.value);
   const perT = +$("se-adet").value, sid = $("se-ogrenci").value;
-  $("se-msg").innerHTML = ""; $("se-ata").disabled = true;
+  $("se-msg").innerHTML = "";
   if (!tids.length) { $("se-msg").innerHTML = '<div class="err">En az bir konu seç.</div>'; return; }
   if (!zorluklar.length) { $("se-msg").innerHTML = '<div class="err">En az bir zorluk seç.</div>'; return; }
   $("se-uret").disabled = true; $("se-msg").innerHTML = '<span class="muted">Havuzdan seçiliyor…</span>';
@@ -1845,7 +1870,6 @@ $("se-uret").onclick = async () => {
     if (!secilen.length) { $("se-msg").innerHTML = '<div class="err">Seçilen konu+zorlukta havuzda onaylı soru yok. Havuz sekmesinden ekleyip onayla.</div>'; $("se-uret").disabled=false; return; }
     if ($("se-sira").value === "karisik") for (let i=secilen.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [secilen[i],secilen[j]]=[secilen[j],secilen[i]]; }
     SE.son = { secilen, sid };
-    $("se-ata").disabled = !sid;
     $("se-msg").innerHTML = '<div class="ok">'+secilen.length+' soru seçildi. PDF penceresi açılıyor.</div>' +
       (eksik.length ? '<div class="muted">Havuz yetersiz: '+esc(eksik.join(", "))+'</div>' : "");
     sePdf(secilen, sid);
@@ -1922,13 +1946,22 @@ function sePdf(secilen, sid){
   });
 }
 $("se-ata").onclick = async () => {
-  if (!SE.son || !SE.son.sid) return;
-  const { secilen, sid } = SE.son;
-  $("se-ata").disabled = true;
+  const sid = $("se-ogrenci").value;
+  if (!SE.son || !SE.son.secilen || !SE.son.secilen.length) {
+    $("se-msg").innerHTML = '<div class="err">Önce <b>PDF oluştur</b> ile soruları seç, sonra ata.</div>'; return;
+  }
+  if (!sid) {
+    $("se-msg").innerHTML = '<div class="err">Atama için yukarıdan <b>öğrenci seç</b>, sonra tekrar dene.</div>';
+    $("se-ogrenci").focus(); $("se-ogrenci").style.borderColor = "#e11d48";
+    setTimeout(()=>{ $("se-ogrenci").style.borderColor = ""; }, 2500);
+    return;
+  }
+  const { secilen } = SE.son;
+  $("se-ata").disabled = true; $("se-msg").innerHTML = '<span class="muted">Atanıyor…</span>';
   try {
+    const baslik = ($("se-baslik").value||"").trim() || otoBaslik(secilen);
     const { data: bk, error: bErr } = await sb.from("booklets")
-      .insert({ student_id: sid, title: (($("se-baslik").value||"").trim() || otoBaslik(secilen)),
-                kategori: otoKategori(secilen) }).select().single();
+      .insert({ student_id: sid, title: baslik, kategori: otoKategori(secilen) }).select().single();
     if (bErr) throw bErr;
     const items = secilen.map((x,i)=>({ booklet_id:bk.id, question_id:x.q.id, topic_id:x.q.topic_id,
       qtype:x.q.qtype, difficulty:x.q.difficulty, stem:x.q.stem, options:x.q.options,
@@ -1937,8 +1970,16 @@ $("se-ata").onclick = async () => {
     if (iErr) throw iErr;
     await sb.from("question_usage").upsert(secilen.map(x=>({ question_id:x.q.id, student_id:sid, context:bk.id })),
       { onConflict:"question_id,student_id", ignoreDuplicates:true });
-    $("se-msg").innerHTML = '<div class="ok">Öğrenciye atandı — portalında görünecek ('+items.length+' soru).</div>';
-  } catch(e){ $("se-msg").innerHTML = '<div class="err">'+esc(e.message||e)+'</div>'; $("se-ata").disabled = false; }
+    const st = STUDENTS.find(x=>x.id===sid);
+    $("se-msg").innerHTML = '<div class="ok"><b>'+esc(baslik)+'</b> → '+esc(st?.name||"öğrenci")+
+      ' adlı öğrenciye atandı ('+items.length+' soru). Portalında "Kitapçıklarım" altında görecek.</div>';
+  } catch(e){
+    const m = String(e.message||e);
+    $("se-msg").innerHTML = '<div class="err">Atanamadı: '+esc(m)+'</div>' +
+      (m.indexOf("kategori") > -1 ? '<div class="muted" style="font-size:12px">guncelleme-5.sql çalıştırıldı mı?</div>' : "");
+    $("se-ata").disabled = false;
+  }
+  $("se-ata").disabled = false;
 };
 
 /* ---- kitapçık ---- */
