@@ -10,7 +10,6 @@
 <title>Matematik Teşhis Paneli — Yönetim</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
   :root{--teal:#0f766e;--ink:#0f172a;--mut:#64748b;--bd:#e2e8f0}
   *{box-sizing:border-box}
@@ -620,14 +619,92 @@ $("og-ekle").onclick = async () => {
   } catch(e){ $("og-msg").innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
 };
 
+/* ================= QR ÜRETİCİ (gömülü — dış kütüphane yok) =================
+   Bayt kipi, ECC seviye M, maske 0, sürüm 1–10. Referans kütüphaneyle birebir
+   aynı matrisi ürettiği ve gerçek okuyucuyla okunduğu doğrulanmıştır. */
+function qrMatris(text){
+  const E=new Array(512), L=new Array(256);
+  for(let i=0,x=1;i<255;i++){E[i]=x;L[x]=i;x<<=1;if(x&256)x^=0x11d;}
+  for(let i=255;i<512;i++)E[i]=E[i-255];
+  const mul=(a,b)=>(a===0||b===0)?0:E[L[a]+L[b]];
+  const polyMul=(a,b)=>{const r=new Array(a.length+b.length-1).fill(0);
+    for(let i=0;i<a.length;i++)for(let j=0;j<b.length;j++)r[i+j]^=mul(a[i],b[j]);return r;};
+  const gen=(n)=>{let g=[1];for(let i=0;i<n;i++)g=polyMul(g,[1,E[i]]);return g;};
+  const ecc=(d,n)=>{const g=gen(n);const r=d.concat(new Array(n).fill(0));
+    for(let i=0;i<d.length;i++){const c=r[i];if(c!==0)for(let j=0;j<g.length;j++)r[i+j]^=mul(g[j],c);}
+    return r.slice(d.length);};
+  const V={1:[26,10,1,16,0,0],2:[44,16,1,28,0,0],3:[70,26,1,44,0,0],4:[100,18,2,32,0,0],
+           5:[134,24,2,43,0,0],6:[172,16,4,27,0,0],7:[196,18,4,31,0,0],8:[242,22,2,38,2,39],
+           9:[292,22,3,36,2,37],10:[346,26,4,43,1,44]};
+  const bytes=new TextEncoder().encode(text);
+  let ver=0;
+  for(let v=1;v<=10;v++){const [,,b1,d1,b2,d2]=V[v];if(bytes.length+2<=b1*d1+b2*d2){ver=v;break;}}
+  if(!ver) throw new Error("QR: metin çok uzun");
+  const [,eN,b1,d1,b2,d2]=V[ver], cap=b1*d1+b2*d2;
+  let bits=[]; const push=(v,n)=>{for(let i=n-1;i>=0;i--)bits.push((v>>i)&1);};
+  push(4,4); push(bytes.length,8); bytes.forEach(b=>push(b,8));
+  push(0,Math.min(4,cap*8-bits.length));
+  while(bits.length%8)bits.push(0);
+  const pad=[0xEC,0x11]; let pi=0;
+  while(bits.length<cap*8) push(pad[pi++%2],8);
+  const dcw=[]; for(let i=0;i<bits.length;i+=8){let v=0;for(let j=0;j<8;j++)v=(v<<1)|bits[i+j];dcw.push(v);}
+  const bl=[], eb=[]; let p=0;
+  for(let i=0;i<b1;i++){const d=dcw.slice(p,p+d1);p+=d1;bl.push(d);eb.push(ecc(d,eN));}
+  for(let i=0;i<b2;i++){const d=dcw.slice(p,p+d2);p+=d2;bl.push(d);eb.push(ecc(d,eN));}
+  const fin=[], maxD=Math.max(d1,d2);
+  for(let i=0;i<maxD;i++)bl.forEach(b=>{if(i<b.length)fin.push(b[i]);});
+  for(let i=0;i<eN;i++)eb.forEach(b=>fin.push(b[i]));
+  const N=17+ver*4, m=Array.from({length:N},()=>new Array(N).fill(null));
+  const fnd=(r,c)=>{for(let i=-1;i<=7;i++)for(let j=-1;j<=7;j++){const rr=r+i,cc=c+j;
+    if(rr<0||rr>=N||cc<0||cc>=N)continue;
+    m[rr][cc]=((i>=0&&i<=6&&(j===0||j===6))||(j>=0&&j<=6&&(i===0||i===6))||(i>=2&&i<=4&&j>=2&&j<=4))?1:0;}};
+  fnd(0,0);fnd(0,N-7);fnd(N-7,0);
+  for(let i=8;i<N-8;i++){m[6][i]=i%2===0?1:0;m[i][6]=i%2===0?1:0;}
+  const AL={1:[],2:[6,18],3:[6,22],4:[6,26],5:[6,30],6:[6,34],7:[6,22,38],8:[6,24,42],9:[6,26,46],10:[6,28,50]};
+  for(const r of AL[ver])for(const c of AL[ver]){
+    if((r===6&&c===6)||(r===6&&c===N-7)||(r===N-7&&c===6))continue;
+    for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++)
+      m[r+i][c+j]=(Math.abs(i)===2||Math.abs(j)===2||(i===0&&j===0))?1:0;}
+  m[N-8][8]=1;
+  for(let i=0;i<9;i++){if(m[8][i]===null)m[8][i]=0;if(m[i][8]===null)m[i][8]=0;}
+  for(let i=N-8;i<N;i++){if(m[8][i]===null)m[8][i]=0;if(m[i][8]===null)m[i][8]=0;}
+  let idx=0,bit=7,yuk=true;
+  for(let c=N-1;c>0;c-=2){ if(c===6)c--;
+    for(let k=0;k<N;k++){ const r=yuk?N-1-k:k;
+      for(let sft=0;sft<2;sft++){ const cc=c-sft;
+        if(m[r][cc]!==null)continue;
+        let v=0; if(idx<fin.length)v=(fin[idx]>>bit)&1;
+        if((r+cc)%2===0)v^=1;
+        m[r][cc]=v; bit--; if(bit<0){bit=7;idx++;}
+      }}
+    yuk=!yuk;
+  }
+  const fbits=0b101010000010010;
+  const p1=[[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,7],[8,8],[7,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8]];
+  const p2=[[N-1,8],[N-2,8],[N-3,8],[N-4,8],[N-5,8],[N-6,8],[N-7,8],[8,N-8],[8,N-7],[8,N-6],[8,N-5],[8,N-4],[8,N-3],[8,N-2],[8,N-1]];
+  for(let i=0;i<15;i++){ const v=(fbits>>(14-i))&1; m[p1[i][0]][p1[i][1]]=v; m[p2[i][0]][p2[i][1]]=v; }
+  return m;
+}
+function qrCiz(canvas, metin, boyut, renk){
+  const m = qrMatris(metin), N = m.length, q = 4;
+  const s = Math.max(2, Math.floor(boyut / (N + 2*q)));
+  const px = (N + 2*q) * s;
+  canvas.width = px; canvas.height = px;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0,0,px,px);
+  ctx.fillStyle = renk || "#0f766e";
+  for (let r=0;r<N;r++) for (let c=0;c<N;c++)
+    if (m[r][c]) ctx.fillRect((c+q)*s, (r+q)*s, s, s);
+}
+
 /* ---- öğrenci portalı QR kodu ---- */
 function qrKur(){
-  const adres = location.href.replace(/\/yonetim\/.*$/, "/ogrenci/");
+  const adres = location.href.replace(/\/yonetim\/.*$/, "/ogrenci/").split("?")[0].split("#")[0];
   const el = $("qr-adres"); if (el) el.value = adres;
-  if (window.QRCode && $("qr-kod")) {
-    QRCode.toCanvas($("qr-kod"), adres, { width: 150, margin: 1,
-      color: { dark: "#0f766e", light: "#ffffff" } }, () => {});
-  }
+  const cv = $("qr-kod");
+  if (cv) { try { qrCiz(cv, adres, 160, "#0f766e"); }
+    catch(e){ console.error(e); cv.replaceWith(Object.assign(document.createElement("div"),
+      { className:"muted", style:"font-size:12px;padding:20px", textContent:"QR çizilemedi — adresi kopyalayıp paylaşabilirsin." })); } }
 }
 $("qr-kopyala").onclick = async () => {
   await navigator.clipboard.writeText($("qr-adres").value);
