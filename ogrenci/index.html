@@ -36,7 +36,8 @@
   .grp{font-size:11px;color:var(--teal);font-weight:700;margin:12px 0 2px;text-transform:uppercase;letter-spacing:.03em}
   .chip{font-size:11px;padding:2px 9px;border-radius:99px;background:#f1f5f9;color:#475569;display:inline-block}
   .chip.bek{background:#fef3c7;color:#92400e}.chip.ok{background:#d1fae5;color:#065f46}.chip.red{background:#fee2e2;color:#991b1b}
-  .err{color:#e11d48;font-size:13px;margin-top:6px}.ok{color:#059669;font-size:13px;margin-top:6px}
+  .err{color:#e11d48;font-size:13px;margin-top:6px}
+  .card.err{color:#e11d48;background:#fef2f2;border-color:#fecaca}.ok{color:#059669;font-size:13px;margin-top:6px}
   .muted{color:var(--mut);font-size:13px}
   .hide{display:none}
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -216,7 +217,8 @@ function goster(k){
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => goster(t.dataset.t));
 
 /* ---- ANALİZ ---- */
-function cizAnaliz({ data }) {
+function cizAnaliz({ data, error }) {
+  if (error) { $("an-konu").innerHTML = '<div class="card err">Analiz alınamadı: '+esc(error.message)+'</div>'; return; }
   const konular = data?.konular || [];
   if (!konular.length) { $("an-konu").innerHTML = '<div class="card muted">Henüz konu analizi yok. Deneme sonuçların işlendikçe burada görünecek.</div>'; return; }
   let html = "";
@@ -261,7 +263,10 @@ document.querySelectorAll("#kt-sec .s").forEach(x => x.onclick = () => {
   document.querySelectorAll("#kt-sec .s").forEach(y=>y.classList.toggle("on", y===x));
   KTSEC = x.dataset.k; ktListe();
 });
-function cizKitapcik({ data }) { BOOKLETS = data || []; ktListe(); }
+function cizKitapcik({ data, error }) {
+  if (error) { $("kt-liste").innerHTML = '<div class="card err">Kitapçıklar alınamadı: '+esc(error.message)+'</div>'; return; }
+  BOOKLETS = data || []; ktListe();
+}
 function ktListe(){
   $("kt-detay").innerHTML = "";
   const list = KTSEC === "hepsi" ? BOOKLETS : BOOKLETS.filter(b => (b.kategori||"konu") === KTSEC);
@@ -302,7 +307,13 @@ window.ktAc = (id) => {
 
 /* ---- DENEME GİRİŞİ ---- */
 async function cizDenemeler(){
-  const { data } = await sb.rpc("get_my_exams");
+  const { data, error } = await sb.rpc("get_my_exams");
+  if (error) {
+    $("gr-bos").innerHTML = '<div class="err">Denemeler alınamadı: '+esc(error.message)+'</div>'+
+      '<div class="muted" style="font-size:12px">Öğretmenine bildir: guncelleme-5, 8 ve 11 numaralı SQL dosyaları çalıştırılmalı.</div>';
+    $("gr-deneme").innerHTML = '<option value="">—</option>';
+    return;
+  }
   EXAMS = data || [];
   const sel = $("gr-deneme");
   sel.innerHTML = '<option value="">Deneme seç…</option>' +
