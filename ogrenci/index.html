@@ -49,6 +49,19 @@
   .sec{display:flex;gap:6px;margin:10px 0}
   .sec .s{padding:6px 14px;border-radius:99px;background:#eef2f6;color:#475569;cursor:pointer;font-size:13px;font-weight:600}
   .sec .s.on{background:var(--mavi);color:#fff}
+  /* --- yazdırma: sadece açık kitapçık --- */
+  .yazdir-bas{display:none}
+  @media print{
+    header, .tabs, .sec, #kt-liste, #p-analiz, #p-giris, #cikis, .no-print, button { display:none !important; }
+    body{background:#fff;font-size:11pt}
+    .wrap{padding:0;max-width:100%}
+    .card{border:0;margin:0;padding:0;border-radius:0}
+    .yazdir-bas{display:block;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
+    .q{break-inside:avoid;page-break-inside:avoid;padding:8px 0;border-bottom:0}
+    .opts{font-size:10.5pt}
+    img{max-height:75mm !important}
+    @page{size:A4;margin:14mm}
+  }
 </style>
 </head>
 <body>
@@ -260,10 +273,16 @@ function ktListe(){
 }
 window.ktAc = (id) => {
   const b = BOOKLETS.find(x=>x.id===id); if (!b) return;
-  let html = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'+
+  const ad = $("hd-ad").textContent || "";
+  let html = '<div class="card">'+
+    '<div class="yazdir-bas"><div style="display:flex;justify-content:space-between;align-items:flex-end">'+
+      '<div><b style="font-size:15pt">'+esc(b.title||"Kitapçık")+'</b></div>'+
+      '<div style="font-size:9pt;text-align:right">'+esc(ad)+'<br>'+(b.items||[]).length+' soru · '+
+      new Date(b.created_at).toLocaleDateString("tr-TR")+'</div></div></div>'+
+    '<div class="no-print" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'+
     '<div><b style="font-size:16px">'+esc(b.title||"Kitapçık")+'</b>'+
     '<div class="muted" style="font-size:12px">'+(b.items||[]).length+' soru</div></div>'+
-    '<button class="ghost" onclick="window.print()">Yazdır</button></div>';
+    '<button class="ghost" onclick="window.print()">🖨 Yazdır / PDF</button></div>';
   (b.items||[]).forEach((it,i) => {
     const opts = ["A","B","C","D","E"].map(L => it.secenekler?.[L]!=null ? '<div><b>'+L+')</b> '+esc(it.secenekler[L])+'</div>' : "").join("");
     const img = it.gorsel ? '<img src="'+esc(it.gorsel)+'" style="max-width:100%;border-radius:8px;margin:6px 0" />' : "";
@@ -282,7 +301,7 @@ async function cizDenemeler(){
   sel.innerHTML = '<option value="">Deneme seç…</option>' +
     EXAMS.map(e=>'<option value="'+e.id+'">'+esc(e.name)+' ('+esc(e.tur)+(e.exam_date?" · "+e.exam_date:"")+')</option>').join("");
   $("gr-bos").innerHTML = EXAMS.length ? "" :
-    'Şu an doldurabileceğin deneme yok. (Öğretmenin sonucunu zaten girdiyse ya da gönderin onay bekliyorsa burada görünmez.)';
+    'Şu an doldurabileceğin deneme yok.<div class="muted" style="font-size:12px;margin-top:4px">Sebebi: öğretmenin henüz deneme tanımlamamış olabilir, sonucunu zaten girmiş olabilir, ya da gönderin onay bekliyor olabilir.</div>';
 }
 $("gr-deneme").onchange = () => {
   const eid = $("gr-deneme").value;
