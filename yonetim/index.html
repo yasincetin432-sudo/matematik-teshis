@@ -77,7 +77,7 @@
 <body>
 <header>
   <div class="hd"><div class="logo">π</div>
-    <div style="flex:1"><h1>Matematik Teşhis Paneli</h1><div class="sub">Yönetim · YKS TYT &amp; AYT</div></div>
+    <div style="flex:1"><h1>Matematik Teşhis Paneli</h1><div class="sub" id="kim">YKS TYT &amp; AYT</div></div>
     <button id="kur-btn" onclick="kurulumBaslat()" style="display:none;align-items:center;gap:5px;padding:6px 12px;font-size:12px;background:#0f766e;margin-left:auto">📲 Uygulamayı Yükle</button>
     <button id="ham" class="hide">☰ Menü</button>
     <button id="logout" class="ghost hide" style="padding:6px 10px;font-size:12px">Çıkış</button>
@@ -473,7 +473,7 @@
         <div><label>Konu başına soru</label><select id="kt-adet"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select></div>
         <div><label>Düzen</label><select id="kt-duzen"><option value="2" selected>2 sütun (ÖSYM tarzı)</option><option value="1">Tek sütun</option></select></div>
         <div><label>Sorular arası boşluk</label><select id="kt-bosluk"><option value="4">Yok — kompakt (kâğıt tasarrufu)</option><option value="15">Az — 15 mm</option><option value="25" selected>Orta — 25 mm</option><option value="35">Çok — 35 mm</option><option value="50">Çözüm alanı — 50 mm</option><option value="80">Geniş çözüm — 80 mm</option></select></div>
-        <div style="flex:0"><button id="kt-olustur" disabled style="padding:11px 18px">Kitapçık oluştur ve ata</button></div>
+        <div style="flex:0"><button id="kt-olustur" style="padding:11px 18px">📕 Kitapçık oluştur ve ata</button></div>
       </div>
       <div class="row" style="margin-top:4px">
         <div style="flex:2"><label>Başlık (boş bırakırsan otomatik: "Caner AYT-2" gibi numaralandırılır)</label><input id="kt-baslik" placeholder="otomatik" /></div>
@@ -537,6 +537,9 @@ async function boot(){
   if (error || !["yetkili","admin"].includes(prof?.role)) { $("lg-err").textContent = "Bu panel öğretmen hesabı içindir."; await sb.auth.signOut(); return; }
   BENIM_ROL = prof.role;
   const { data:{ user: buser } } = await sb.auth.getUser(); BENIM_UID = buser?.id || null;
+  BENIM_AD = prof.display_name || (buser?.email || "").split("@")[0] || "";
+  $("kim").innerHTML = (BENIM_ROL === "admin" ? '<b style="color:#0f766e">Yönetici</b>' : "Öğretmen") +
+    ' · <b>' + esc(BENIM_AD) + '</b> <span style="opacity:.65">(' + esc(buser?.email || "") + ')</span>';
   $("p-login").classList.add("hide"); $("yan").classList.remove("hide"); $("logout").classList.remove("hide"); $("ham").classList.remove("hide");
   showTab("ogr");
   const t = await sb.from("topics").select("*").order("section").order("grp");
@@ -548,7 +551,6 @@ async function boot(){
   if (BENIM_ROL === "admin") {
     $("yon-bas").classList.remove("hide"); $("yon-link").classList.remove("hide");
     $("og-kapsam").classList.remove("hide");
-    document.querySelector(".sub").textContent = "Yönetici · tüm öğretmenler";
     await otYukle(); ogTabloCiz();
   }
 }
@@ -920,7 +922,7 @@ $("vr-kaydet").onclick = async () => {
 };
 
 /* ================= YÖNETİCİ: ÖĞRETMENLER ================= */
-let BENIM_ROL = "yetkili", BENIM_UID = null, OGRETMENLER = [];
+let BENIM_ROL = "yetkili", BENIM_UID = null, BENIM_AD = "", OGRETMENLER = [];
 async function otYukle(){
   const { data, error } = await sb.rpc("admin_list_teachers");
   if (error || data?.error) { $("ot-tablo").innerHTML = '<tr><td class="err">'+esc(error?.message || data.error)+'</td></tr>'; return; }
@@ -1091,7 +1093,7 @@ async function drawDiag(){
   const sid = $("ts-ogrenci").value;
   TS.sid = sid;
   $("ts-raporkart").classList.toggle("hide", !sid);
-  $("ts-yazdir").disabled = !sid;
+  $("ts-yazdir").disabled = !sid;   // rapor yoksa yazdıracak bir şey de yok
   $("ts-rapor").classList.add("hide"); $("ts-raporbtn").classList.add("hide");
   if (!sid) { $("ts-govde").innerHTML = '<div class="card muted">Değerlendirme için öğrenci seç.</div>'; return; }
   $("ts-govde").innerHTML = '<div class="card muted">Değerlendirme hazırlanıyor…</div>';
@@ -1985,14 +1987,18 @@ $("se-ata").onclick = async () => {
 /* ---- kitapçık ---- */
 let KT = { zayif: [] };
 $("kt-ogrenci").onchange = async () => {
-  const sid = $("kt-ogrenci").value; $("kt-zayif").textContent = ""; $("kt-olustur").disabled = true;
-  if (!sid) return;
+  const sid = $("kt-ogrenci").value; $("kt-zayif").textContent = ""; $("kt-msg").innerHTML = "";
+  KT.zayif = [];
+  if (!sid) { $("kt-zayif").textContent = ""; return; }
+  $("kt-zayif").innerHTML = '<span class="muted">Teşhis okunuyor…</span>';
   const agg = await fetchAgg(sid);
   KT.zayif = agg.filter(x=>x.s<.65).sort((a,b)=>((b.t.default_count||.5)*(1-b.s))-((a.t.default_count||.5)*(1-a.s)));
+  const st = STUDENTS.find(x=>x.id===sid);
   $("kt-zayif").innerHTML = KT.zayif.length
-    ? "Zayıf konular: " + KT.zayif.map(x=>'<span class="chip">'+esc(x.t.name)+' %'+Math.round(x.s*100)+'</span>').join(" ")
-    : "Zayıf konu yok ya da veri girilmemiş.";
-  $("kt-olustur").disabled = !KT.zayif.length;
+    ? "Zayıf konular ("+KT.zayif.length+"): " + KT.zayif.map(x=>'<span class="chip">'+esc(x.t.name)+' %'+Math.round(x.s*100)+'</span>').join(" ")
+    : (agg.length
+        ? '<span class="ok">'+esc(st?.name||"Öğrenci")+' için eşik altı (&lt;%65) konu yok — tebrikler. Pekiştirme seti için <b>Soru Seti PDF</b> sekmesini kullan.</span>'
+        : '<span class="err">Bu öğrenci için henüz <b>deneme verisi girilmemiş</b>.</span><div class="muted" style="font-size:12px">Kitapçık, teşhise dayanır: önce <b>Veri Girişi</b>\'nden bir deneme sonucu ekle. Ya da konuları kendin seçmek için <b>Soru Seti PDF</b> sekmesini kullan.</div>');
 };
 /* Otomatik kitapçık başlığı: "Caner AYT-2" — o öğrenciye kaçıncı kitapçık olduğunu sayar */
 /* Kategori: hepsi tek bölümse o bölüm; tek konuysa "konu"; karışıksa konu */
@@ -2012,6 +2018,17 @@ async function otoKitapcikBaslik(sid, secilen){
 }
 $("kt-olustur").onclick = async () => {
   const sid = $("kt-ogrenci").value, perT = +$("kt-adet").value;
+  if (!sid) {
+    $("kt-msg").innerHTML = '<div class="err">Önce <b>öğrenci seç</b>.</div>';
+    $("kt-ogrenci").focus(); $("kt-ogrenci").style.borderColor = "#e11d48";
+    setTimeout(()=>{ $("kt-ogrenci").style.borderColor = ""; }, 2500);
+    return;
+  }
+  if (!KT.zayif || !KT.zayif.length) {
+    $("kt-msg").innerHTML = '<div class="err">Bu öğrencide kitapçık üretilecek <b>zayıf konu yok</b>.</div>' +
+      '<div class="muted" style="font-size:12px">Kitapçık teşhise dayanır. Ya <b>Veri Girişi</b>\'nden deneme sonucu ekle, ya da konuları elle seçmek için <b>Soru Seti PDF</b> sekmesini kullan.</div>';
+    return;
+  }
   $("kt-msg").innerHTML = '<span class="muted">Havuzdan seçiliyor…</span>'; $("kt-olustur").disabled = true;
   try {
     const { data: used } = await sb.from("question_usage").select("question_id").eq("student_id",sid);
