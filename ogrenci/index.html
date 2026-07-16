@@ -90,7 +90,7 @@
   </div>
 
   <!-- ANALİZ -->
-  <div id="p-analiz" class="hide"></div>
+  <div id="p-analiz" class="hide"><div id="an-gecmis"></div><div id="an-konu"></div></div>
 
   <!-- KİTAPÇIK -->
   <div id="p-kitapcik" class="hide">
@@ -204,6 +204,7 @@ async function yukle() {
   TOPICS = t.data || [];
   goster("analiz");
   cizAnaliz(await sb.rpc("get_my_diagnosis"));
+  cizGecmis();
   cizKitapcik(await sb.rpc("get_my_booklets"));
   cizDenemeler();
   cizGonderiler();
@@ -217,7 +218,7 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => goster(t.datase
 /* ---- ANALİZ ---- */
 function cizAnaliz({ data }) {
   const konular = data?.konular || [];
-  if (!konular.length) { $("p-analiz").innerHTML = '<div class="card muted">Henüz analiz verisi yok. Deneme sonuçların işlendikçe burada görünecek.</div>'; return; }
+  if (!konular.length) { $("an-konu").innerHTML = '<div class="card muted">Henüz konu analizi yok. Deneme sonuçların işlendikçe burada görünecek.</div>'; return; }
   let html = "";
   for (const sec of ["TYT","AYT"]) {
     const list = konular.filter(k => k.section === sec);
@@ -234,7 +235,24 @@ function cizAnaliz({ data }) {
     }
     html += '</div>';
   }
-  $("p-analiz").innerHTML = html;
+  $("an-konu").innerHTML = html;
+}
+
+/* ---- Girdiğim denemeler ---- */
+async function cizGecmis(){
+  const { data, error } = await sb.rpc("get_my_exam_history");
+  if (error) { $("an-gecmis").innerHTML = '<div class="card muted">Deneme geçmişi alınamadı. (guncelleme-10.sql çalıştırıldı mı?)</div>'; return; }
+  const list = data || [];
+  if (!list.length) { $("an-gecmis").innerHTML = '<div class="card muted">Henüz işlenmiş deneme sonucun yok. "Deneme Girişi" sekmesinden gönderebilirsin.</div>'; return; }
+  $("an-gecmis").innerHTML = '<div class="card"><h1 style="font-size:15px;margin:0 0 6px">Girdiğim denemeler ('+list.length+')</h1>'+
+    '<div style="overflow-x:auto"><table><tr><th>Deneme</th><th>Tür</th><th>Tarih</th><th>D</th><th>Y</th><th>B</th><th>Net</th></tr>'+
+    list.map(x => '<tr><td><b>'+esc(x.deneme)+'</b></td>'+
+      '<td><span class="chip">'+esc(x.tur)+'</span></td>'+
+      '<td class="muted">'+(x.tarih||"—")+'</td>'+
+      '<td style="color:#059669;font-weight:700">'+x.D+'</td>'+
+      '<td style="color:#e11d48;font-weight:700">'+x.Y+'</td>'+
+      '<td class="muted">'+x.B+'</td>'+
+      '<td style="font-weight:800">'+x.net+'</td></tr>').join("")+'</table></div></div>';
 }
 
 /* ---- KİTAPÇIKLAR (TYT / AYT / Konu) ---- */
@@ -289,8 +307,24 @@ async function cizDenemeler(){
   const sel = $("gr-deneme");
   sel.innerHTML = '<option value="">Deneme seç…</option>' +
     EXAMS.map(e=>'<option value="'+e.id+'">'+esc(e.name)+' ('+esc(e.tur)+(e.exam_date?" · "+e.exam_date:"")+')</option>').join("");
-  $("gr-bos").innerHTML = EXAMS.length ? "" :
-    'Şu an doldurabileceğin deneme yok.<div class="muted" style="font-size:12px;margin-top:4px">Sebebi: öğretmenin henüz deneme tanımlamamış olabilir, sonucunu zaten girmiş olabilir, ya da gönderin onay bekliyor olabilir.</div>';
+  if (EXAMS.length) { $("gr-bos").innerHTML = ""; return; }
+  // Boşsa: sebebini sunucudan sor
+  const { data: d } = await sb.rpc("get_my_exam_status");
+  let mesaj = "Şu an doldurabileceğin deneme yok.";
+  if (!d || d.durum === "ogrenci_kaydi_yok")
+    mesaj = '<b>Hesabın bir öğrenci kaydına bağlı değil.</b><div class="muted" style="font-size:12px">Öğretmenine bildir: hesabın yeniden oluşturulmalı.</div>';
+  else if (d.durum === "ogretmen_bagi_yok")
+    mesaj = '<b>Öğretmen bağlantın kurulamadı.</b><div class="muted" style="font-size:12px">Öğretmenine bildir.</div>';
+  else if (d.toplam_deneme === 0)
+    mesaj = 'Öğretmenin <b>henüz deneme tanımlamamış</b>. Tanımlayınca burada görünecek.';
+  else if (d.onay_bekleyen > 0)
+    mesaj = 'Gönderin <b>onay bekliyor</b>. Öğretmenin onayladıktan sonra analizine işlenecek.';
+  else if (d.sonucu_girilmis >= d.toplam_deneme)
+    mesaj = 'Tüm denemelerin <b>sonucu zaten girilmiş</b>. Yeni deneme eklenince burada görünecek.';
+  else
+    mesaj = 'Şu an doldurabileceğin deneme yok.<div class="muted" style="font-size:12px">Toplam '+d.toplam_deneme+
+            ' deneme · '+d.sonucu_girilmis+' tanesinin sonucu girilmiş.</div>';
+  $("gr-bos").innerHTML = mesaj;
 }
 $("gr-deneme").onchange = () => {
   const eid = $("gr-deneme").value;
