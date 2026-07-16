@@ -68,6 +68,7 @@
 <header>
   <div class="hd"><div class="logo">π</div>
     <div style="flex:1"><h1>Öğrenci Portalı</h1><div class="sub" id="hd-ad">Matematik</div></div>
+    <button id="kur-btn" onclick="kurulumBaslat()" style="display:none;align-items:center;gap:5px;padding:6px 12px;font-size:12px;background:#0f766e">📲 Uygulamayı Yükle</button>
     <button id="cikis" class="ghost hide" style="padding:6px 12px;font-size:12px">Çıkış</button>
   </div>
   <div class="tabs hide" id="tabs">
@@ -139,26 +140,14 @@
 </div>
 
 <script>
-const SUPABASE_URL = localStorage.getItem("sb_url") || "";
-const SUPABASE_ANON_KEY = localStorage.getItem("sb_key") || "";
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  document.body.innerHTML = '<div style="max-width:470px;margin:50px auto;font-family:system-ui;padding:22px;background:#fff;border:1px solid #e2e8f0;border-radius:14px">'
-   + '<h2 style="margin-top:0">İlk kurulum</h2>'
-   + '<p style="color:#64748b;font-size:14px">Supabase panosunda <b>Project Settings → API</b> sayfasındaki iki değeri yapıştır.</p>'
-   + '<label style="font-size:13px;color:#64748b">Project URL</label>'
-   + '<input id="cf-url" style="width:100%;padding:9px;margin:4px 0 10px;border:1px solid #cbd5e1;border-radius:8px" placeholder="https://xxxx.supabase.co"/>'
-   + '<label style="font-size:13px;color:#64748b">anon public key</label>'
-   + '<input id="cf-key" style="width:100%;padding:9px;margin:4px 0 14px;border:1px solid #cbd5e1;border-radius:8px"/>'
-   + '<button id="cf-save" style="padding:10px 16px;background:#1e40af;color:#fff;border:0;border-radius:9px;font-weight:600;cursor:pointer">Kaydet ve başlat</button></div>';
-  document.getElementById("cf-save").onclick = function(){
-    var u = document.getElementById("cf-url").value.trim().replace(/\/+$/,"");
-    var k = document.getElementById("cf-key").value.trim();
-    if (u.indexOf("https://") !== 0) { alert("Project URL https:// ile başlamalı."); return; }
-    if (k.length < 20) { alert("anon/publishable anahtarı eksik görünüyor."); return; }
-    localStorage.setItem("sb_url", u); localStorage.setItem("sb_key", k); location.reload();
-  };
-  throw new Error("config-needed");
-}
+/* ============================================================
+   BAĞLANTI AYARLARI — Supabase projen değişirse SADECE bu iki satırı düzenle.
+   Bu değerlerin paylaşılması güvenlidir (publishable key). Veriyi koruyan şey
+   anahtar değil, veritabanındaki satır-düzeyi güvenlik (RLS) ve RPC'lerdir.
+   ============================================================ */
+const SUPABASE_URL = "https://sunoydiycbkydwsmhbjw.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_FJfRb6rjYTcyhLMJIjjl2w_C61DE1MK";
+try { localStorage.removeItem("sb_url"); localStorage.removeItem("sb_key"); } catch(e){}   // eski ayarları temizle
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const FN = (n) => SUPABASE_URL + "/functions/v1/" + n;
@@ -378,6 +367,26 @@ async function cizGonderiler(){
       '<div class="muted" style="font-size:11px">'+new Date(s.created_at).toLocaleDateString("tr-TR")+
       (s.note?' · '+esc(s.note):"")+'</div></div><span class="chip '+c+'">'+ad+'</span></div>';
   }).join("") : "Henüz gönderin yok.";
+}
+
+
+/* ---- PWA: tek tıkla kurulum ---- */
+let kurulumOlayi = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); kurulumOlayi = e;
+  const b = document.getElementById("kur-btn"); if (b) b.style.display = "inline-flex";
+});
+window.addEventListener("appinstalled", () => {
+  const b = document.getElementById("kur-btn"); if (b) b.style.display = "none";
+  kurulumOlayi = null;
+});
+function kurulumBaslat(){
+  if (kurulumOlayi) { kurulumOlayi.prompt(); kurulumOlayi.userChoice.then(()=>{ kurulumOlayi = null;
+    const b = document.getElementById("kur-btn"); if (b) b.style.display = "none"; }); return; }
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  alert(ios
+    ? "iPhone/iPad'de kurulum:\n\n1) Safari'de alttaki Paylaş simgesine bas\n2) \"Ana Ekrana Ekle\"yi seç\n3) Ekle\n\nUygulama ana ekranında simgesiyle açılır."
+    : "Kurulum:\n\n• Android (Chrome): sağ üst ⋮ menü → \"Uygulamayı yükle\"\n• Bilgisayar (Chrome/Edge): adres çubuğundaki kurulum simgesi\n\nZaten kuruluysa bu seçenek görünmez.");
 }
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
