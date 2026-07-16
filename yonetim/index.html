@@ -1,18 +1,4 @@
-window.delQuestion = async (id) => {
-  const kutu = $("qb-"+id);
-  if (kutu) kutu.style.opacity = ".4";
-  const { error } = await sb.from("questions").delete().eq("id", id);
-  if (error) {
-    if (kutu) kutu.style.opacity = "1";
-    const m = error.message || "";
-    alert(m.indexOf("foreign key") > -1 || m.indexOf("violates") > -1
-      ? "Silinemedi: eski bir kısıt engelliyor.\n\nÇÖZÜM: Supabase → SQL Editor'de guncelleme-7.sql dosyasını bir kez çalıştır."
-      : "Silinemedi: " + m);
-    return;
-  }
-  if (kutu) kutu.remove();
-  hvSecGuncelle();
-};
+<!doctype html>
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
@@ -63,29 +49,56 @@ window.delQuestion = async (id) => {
   .qbox{border:1px solid var(--bd);border-radius:10px;padding:10px;margin:8px 0}
   .opts{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:5px;font-size:13px;color:#334155}
   details>summary{cursor:pointer;color:var(--teal);font-size:13px;font-weight:600}
-  @media print{ header,.tabs,.no-print{display:none!important} body{background:#fff} .card{border:0} }
+  /* --- sol menü --- */
+  .duzen{display:flex;align-items:flex-start;max-width:1180px;margin:0 auto;gap:0}
+  .yan{width:208px;flex:none;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;
+       background:#fff;border-right:1px solid var(--bd);padding:10px 8px}
+  .ybas{font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase;padding:12px 10px 5px}
+  .ylink{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:8px;color:#475569;
+         cursor:pointer;font-size:14px;font-weight:600;margin-bottom:2px;white-space:nowrap}
+  .ylink:hover{background:#f1f5f9;color:#0f172a}
+  .ylink.on{background:var(--teal);color:#fff}
+  .ylink .ik{width:18px;text-align:center;font-size:14px}
+  .icerik{flex:1;min-width:0;padding:0 14px 40px}
+  #ham{display:none}
+  @media (max-width:880px){
+    .duzen{display:block}
+    .yan{position:static;width:auto;height:auto;border-right:0;border-bottom:1px solid var(--bd);
+         display:none;padding:8px}
+    .yan.acik{display:block}
+    .ybas{padding:8px 10px 3px}
+    #ham{display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;color:#334155;border:0;
+         border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer}
+    .icerik{padding:0 10px 30px}
+  }
+  @media print{ header,.yan,.no-print{display:none!important} body{background:#fff} .card{border:0} .duzen{display:block} }
 </style>
 </head>
 <body>
 <header>
   <div class="hd"><div class="logo">π</div>
     <div style="flex:1"><h1>Matematik Teşhis Paneli</h1><div class="sub">Yönetim · YKS TYT &amp; AYT</div></div>
+    <button id="ham" class="hide">☰ Menü</button>
     <button id="logout" class="ghost hide" style="padding:6px 10px;font-size:12px">Çıkış</button>
-  </div>
-  <div class="tabs hide" id="tabs">
-    <div class="tab on" data-t="ogr">Öğrenciler</div>
-    <div class="tab" data-t="den">Denemeler</div>
-    <div class="tab" data-t="veri">Veri Girişi</div>
-    <div class="tab" data-t="gon">Gönderiler <span id="gn-rozet" class="chip hide" style="background:#fef3c7;color:#92400e;margin-left:4px">0</span></div>
-    <div class="tab" data-t="tes">Teşhis &amp; Rapor</div>
-    <div class="tab" data-t="hav">Soru Havuzu</div>
-    <div class="tab" data-t="kirp">✂ Soru Kırpma</div>
-    <div class="tab" data-t="set">Soru Seti PDF</div>
-    <div class="tab" data-t="kit">Kitapçık</div>
   </div>
 </header>
 
-<div class="wrap">
+
+<div class="duzen">
+  <nav class="yan hide" id="yan">
+    <div class="ybas">Soru İşlemleri</div>
+    <div class="ylink" data-t="hav"><span class="ik">📚</span> Soru Havuzu</div>
+    <div class="ylink" data-t="kirp"><span class="ik">✂</span> Soru Kırpma</div>
+    <div class="ylink" data-t="set"><span class="ik">📄</span> Soru Seti PDF</div>
+    <div class="ybas">Öğrenci</div>
+    <div class="ylink" data-t="ogr"><span class="ik">👤</span> Öğrenciler</div>
+    <div class="ylink" data-t="den"><span class="ik">🗓</span> Denemeler</div>
+    <div class="ylink" data-t="veri"><span class="ik">✍</span> Veri Girişi</div>
+    <div class="ylink" data-t="gon"><span class="ik">📥</span> Gönderiler <span id="gn-rozet" class="chip hide" style="background:#fef3c7;color:#92400e;margin-left:auto">0</span></div>
+    <div class="ylink" data-t="tes"><span class="ik">📊</span> Teşhis &amp; Rapor</div>
+    <div class="ylink" data-t="kit"><span class="ik">📕</span> Kitapçık</div>
+  </nav>
+  <main class="icerik">
   <div id="p-login" class="card" style="max-width:420px;margin:40px auto">
     <h1 style="margin-bottom:4px">Yetkili Girişi</h1>
     <p class="sub">Supabase'de tanımlı öğretmen e-postası ve şifresiyle gir.</p>
@@ -432,6 +445,7 @@ window.delQuestion = async (id) => {
     </div>
     <div id="kt-onizleme"></div>
   </div>
+  </main>
 </div>
 
 <script>
@@ -492,7 +506,7 @@ sb.auth.getSession().then(({data}) => { if (data.session) boot(); });
 async function boot(){
   const { data: prof, error } = await sb.rpc("get_my_profile");
   if (error || prof?.role !== "yetkili") { $("lg-err").textContent = "Bu panel yetkili hesabı içindir."; await sb.auth.signOut(); return; }
-  $("p-login").classList.add("hide"); $("tabs").classList.remove("hide"); $("logout").classList.remove("hide");
+  $("p-login").classList.add("hide"); $("yan").classList.remove("hide"); $("logout").classList.remove("hide"); $("ham").classList.remove("hide");
   showTab("ogr");
   const t = await sb.from("topics").select("*").order("section").order("grp");
   TOPICS = t.data || [];
@@ -502,10 +516,13 @@ async function boot(){
   loadPool(); gnYukle(); gnRozet();
 }
 function showTab(k){
-  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x.dataset.t === k));
+  document.querySelectorAll(".ylink").forEach(x => x.classList.toggle("on", x.dataset.t === k));
   ["ogr","den","veri","gon","tes","hav","kirp","set","kit"].forEach(p => $("p-"+p).classList.toggle("hide", p !== k));
+  $("yan").classList.remove("acik");            // mobilde seçince menü kapansın
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
-document.querySelectorAll(".tab").forEach(t => t.onclick = () => showTab(t.dataset.t));
+document.querySelectorAll(".ylink").forEach(t => t.onclick = () => showTab(t.dataset.t));
+$("ham").onclick = () => $("yan").classList.toggle("acik");
 
 /* ---- öğrenciler + bilgiler ---- */
 async function loadStudents(){
@@ -1278,6 +1295,21 @@ $("hv-topluSil").onclick = async () => {
   const { error } = await sb.from("questions").delete().in("id", ids);
   if (error) { alert("Silinemedi: " + error.message + "\n\nguncelleme-7.sql çalıştırıldı mı?"); return; }
   loadPool();
+};
+window.delQuestion = async (id) => {
+  const kutu = $("qb-"+id);
+  if (kutu) kutu.style.opacity = ".4";
+  const { error } = await sb.from("questions").delete().eq("id", id);
+  if (error) {
+    if (kutu) kutu.style.opacity = "1";
+    const m = error.message || "";
+    alert(m.indexOf("foreign key") > -1 || m.indexOf("violates") > -1
+      ? "Silinemedi: eski bir kısıt engelliyor.\n\nÇÖZÜM: Supabase → SQL Editor'de guncelleme-7.sql dosyasını bir kez çalıştır."
+      : "Silinemedi: " + m);
+    return;
+  }
+  if (kutu) kutu.remove();
+  hvSecGuncelle();
 };
 window.setStatus = async (id, status) => {
   const { data:{ user } } = await sb.auth.getUser();
