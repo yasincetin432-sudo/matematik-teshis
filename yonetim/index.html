@@ -360,7 +360,7 @@
       <div class="card" style="padding:8px 12px;position:sticky;top:96px;z-index:6">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <span id="kr-sayfa" class="chip">–</span>
-          <span class="muted" style="font-size:12px">Sorunun üzerine <b>fareyle sürükle</b> → cevabı seç → Tamam. Sayfalar arasında <b>aşağı kaydırarak</b> gez.</span>
+          <span class="muted" style="font-size:12px">Sorunun üzerine <b>sürükle</b> (fare veya parmak) → cevabı seç → Tamam.<br><span style="font-size:11px">📱 Telefonda: sayfayı kaydırmak için <b>sayfa görüntüsünün dışına</b> dokun; görüntü üzerinde parmak hareketi kutu çizer.</span></span>
           <button class="ghost" id="kr-buyut" style="padding:5px 10px;font-size:12px;margin-left:auto">🔍+</button>
           <button class="ghost" id="kr-kucult" style="padding:5px 10px;font-size:12px">🔍−</button>
         </div>
@@ -368,16 +368,16 @@
       <div class="card" style="padding:10px;overflow-y:auto;max-height:640px" id="kr-kaydir">
         <div id="kr-sahne" style="display:flex;flex-direction:column;align-items:center;gap:14px"></div>
       </div>
-      <div id="kr-pop" style="position:absolute;display:none;background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:6px;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:20">
-        <div style="display:flex;gap:4px;align-items:center">
+      <div id="kr-pop" style="position:absolute;display:none;background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:20;max-width:96vw">
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
           <span class="muted" style="font-size:11px;margin-right:2px">Cevap:</span>
-          <button class="kr-c" data-c="A" style="padding:6px 11px;font-size:13px;background:#eef2f6;color:#334155">A</button>
-          <button class="kr-c" data-c="B" style="padding:6px 11px;font-size:13px;background:#eef2f6;color:#334155">B</button>
-          <button class="kr-c" data-c="C" style="padding:6px 11px;font-size:13px;background:#eef2f6;color:#334155">C</button>
-          <button class="kr-c" data-c="D" style="padding:6px 11px;font-size:13px;background:#eef2f6;color:#334155">D</button>
-          <button class="kr-c" data-c="E" style="padding:6px 11px;font-size:13px;background:#eef2f6;color:#334155">E</button>
-          <button id="kr-tamam" style="padding:6px 14px;font-size:13px;margin-left:4px" disabled>Tamam</button>
-          <button class="ghost" id="kr-iptal" style="padding:6px 10px;font-size:13px">✕</button>
+          <button class="kr-c" data-c="A" style="padding:9px 14px;font-size:14px;background:#eef2f6;color:#334155;min-width:42px">A</button>
+          <button class="kr-c" data-c="B" style="padding:9px 14px;font-size:14px;background:#eef2f6;color:#334155;min-width:42px">B</button>
+          <button class="kr-c" data-c="C" style="padding:9px 14px;font-size:14px;background:#eef2f6;color:#334155;min-width:42px">C</button>
+          <button class="kr-c" data-c="D" style="padding:9px 14px;font-size:14px;background:#eef2f6;color:#334155;min-width:42px">D</button>
+          <button class="kr-c" data-c="E" style="padding:9px 14px;font-size:14px;background:#eef2f6;color:#334155;min-width:42px">E</button>
+          <button id="kr-tamam" style="padding:9px 18px;font-size:14px;margin-left:4px" disabled>Tamam</button>
+          <button class="ghost" id="kr-iptal" style="padding:9px 13px;font-size:14px">✕</button>
         </div>
         <div id="kr-pop-ipucu" class="muted" style="font-size:11px;margin-top:3px;text-align:center">Önce cevabı seç</div>
       </div>
@@ -1646,36 +1646,50 @@ async function krOlcekDegistir(yeni){
 $("kr-buyut").onclick = () => { if (KR.olcek < 3) krOlcekDegistir(+(KR.olcek + 0.25).toFixed(2)); };
 $("kr-kucult").onclick = () => { if (KR.olcek > 0.75) krOlcekDegistir(+(KR.olcek - 0.25).toFixed(2)); };
 
-/* --- her sayfa için kutu çizme --- */
+/* --- kutu çizme: fare VE dokunmatik (Pointer Events) ---
+   Telefon/tablette parmakla çizim: sayfa kaydırma davranışı bastırılır
+   (touch-action:none), böylece parmak hareketi kutu çizer, sayfayı kaydırmaz. */
 function krCizmeBagla(k){
   const c = k.canvas;
-  let bas = null, kutu = null;
+  c.style.touchAction = "none";          // parmak = çizim, kaydırma değil
+  let bas = null, kutu = null, pid = null;
   const olc = () => { const r = c.getBoundingClientRect(); return { rx: c.width/r.width, ry: c.height/r.height, r }; };
-  c.addEventListener("mousedown", (e) => {
+
+  c.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;   // yalnızca sol tuş
+    e.preventDefault();
     krPopKapat();
+    pid = e.pointerId;
+    try { c.setPointerCapture(pid); } catch(_){}
     const { r } = olc();
     bas = { x: e.clientX - r.left, y: e.clientY - r.top };
     kutu = document.createElement("div");
     kutu.id = "kr-secim";
-    kutu.style.cssText = "position:absolute;border:2px solid #dc2626;background:rgba(220,38,38,.08);pointer-events:none;z-index:4";
+    kutu.style.cssText = "position:absolute;border:2px solid #dc2626;background:rgba(220,38,38,.10);pointer-events:none;z-index:4";
     kutu.style.left = bas.x+"px"; kutu.style.top = bas.y+"px";
     k.wrap.appendChild(kutu);
   });
-  c.addEventListener("mousemove", (e) => {
-    if (!bas || !kutu) return;
+
+  c.addEventListener("pointermove", (e) => {
+    if (!bas || e.pointerId !== pid) return;
+    e.preventDefault();
     const { r } = olc();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     kutu.style.left = Math.min(bas.x,x)+"px"; kutu.style.top = Math.min(bas.y,y)+"px";
     kutu.style.width = Math.abs(x-bas.x)+"px"; kutu.style.height = Math.abs(y-bas.y)+"px";
   });
-  c.addEventListener("mouseup", (e) => {
-    if (!bas) return;
+
+  const bitir = (e) => {
+    if (!bas || (pid !== null && e.pointerId !== pid)) return;
     const { rx, ry, r } = olc();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     const w = Math.abs(x-bas.x), h = Math.abs(y-bas.y);
     const sx = Math.min(bas.x,x), sy = Math.min(bas.y,y);
     bas = null;
-    if (w < 25 || h < 25) { if (kutu) kutu.remove(); kutu = null; return; }
+    try { c.releasePointerCapture(pid); } catch(_){}
+    pid = null;
+    const enAz = (e.pointerType === "touch") ? 18 : 25;   // parmakta biraz esnek
+    if (w < enAz || h < enAz) { if (kutu) kutu.remove(); kutu = null; return; }
     KR.bekleyen = { k, x: sx*rx, y: sy*ry, w: w*rx, h: h*ry, kutu };
     KR.cevap = null;
     document.querySelectorAll(".kr-c").forEach(b => { b.style.background = "#eef2f6"; b.style.color = "#334155"; });
@@ -1684,9 +1698,19 @@ function krCizmeBagla(k){
     const pop = $("kr-pop");
     pop.style.display = "block";
     const wr = k.wrap.getBoundingClientRect();
-    pop.style.left = (window.scrollX + wr.left + sx) + "px";
+    // ekran dışına taşmasın
+    const genislik = pop.offsetWidth || 300;
+    let solX = window.scrollX + wr.left + sx;
+    solX = Math.max(window.scrollX + 6, Math.min(solX, window.scrollX + window.innerWidth - genislik - 6));
+    pop.style.left = solX + "px";
     pop.style.top  = (window.scrollY + wr.top + sy + h + 8) + "px";
     kutu = null;
+  };
+  c.addEventListener("pointerup", bitir);
+  c.addEventListener("pointercancel", (e) => {
+    if (!bas) return;
+    bas = null; if (kutu) kutu.remove(); kutu = null;
+    try { c.releasePointerCapture(pid); } catch(_){} pid = null;
   });
 }
 function krPopKapat(){
